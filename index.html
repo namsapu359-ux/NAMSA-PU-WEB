@@ -660,12 +660,17 @@ function paintAuth(on){
   if(on){$("#who").textContent=session.user.email;loadLinks()}
   else{closeAdmin();clearTimeout(idleT)}
 }
+/* Returns "" when the person is an admin, otherwise a message explaining exactly what is wrong. */
 async function applySession(s){
-  if(!s||!sb){session=null;paintAuth(false);return false}
-  let ok=false;
-  try{const r=await sb.rpc("is_namsa_admin");ok=!r.error&&r.data===true}catch{}
-  if(!ok){session=null;paintAuth(false);try{await sb.auth.signOut()}catch{}return false}
-  session=s;paintAuth(true);bumpIdle();return true;
+  if(!s||!sb){session=null;paintAuth(false);return "No active login."}
+  let msg="";
+  try{
+    const r=await sb.rpc("is_namsa_admin");
+    if(r.error)msg="Could not check admin access ("+r.error.message+"). Run namsa-supabase.sql in Supabase, then try again.";
+    else if(r.data!==true)msg="You signed in as "+s.user.email+", but this email is not on the admin list. In Supabase open Table Editor, namsa_portal_admins, and add this email.";
+  }catch(x){msg="Could not check admin access. Check your internet connection."}
+  if(msg){session=null;paintAuth(false);try{await sb.auth.signOut()}catch{}return msg}
+  session=s;paintAuth(true);bumpIdle();return "";
 }
 async function doSignOut(msg){
   closeAdmin();session=null;paintAuth(false);
@@ -682,13 +687,18 @@ async function login(){
   err("Signing in…");
   const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
   if(error){
-    const n=+(sget("namsa_fails")||0)+1;sset("namsa_fails",n);
-    if(n>=5){sset("namsa_lock",Date.now()+5*60000);sset("namsa_fails",0);return err("Too many attempts. Locked for 5 minutes.")}
-    return err("Incorrect email or password.");
+    const m=error.message||"Sign in failed.";
+    if(/invalid login credentials/i.test(m)){
+      const n=+(sget("namsa_fails")||0)+1;sset("namsa_fails",n);
+      if(n>=5){sset("namsa_lock",Date.now()+5*60000);sset("namsa_fails",0);return err("Too many attempts. Locked for 5 minutes. Closing this browser tab also clears the lock.")}
+      return err("Incorrect email or password. Use the exact email and password of the user you created in Supabase (Authentication, Users).");
+    }
+    return err(m+(/confirm/i.test(m)?" In Supabase open Authentication, Users, and confirm this user.":""));
   }
   sset("namsa_fails",0);$("#pw").value="";
-  if(await applySession(data.session)){close();toast("Signed in");openAdmin()}
-  else err("This account is not an admin.");
+  const bad=await applySession(data.session);
+  if(!bad){close();toast("Signed in");openAdmin()}
+  else err(bad);
 }
 $("#loginGo").onclick=login;
 $("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
