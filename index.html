@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NAMSA-PU Digital Portal Hub</title>
+<meta name="description" content="Nursing and Midwifery Students Association, PU: leadership and committee platforms.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<!--
+=====================  ONE-TIME SUPABASE SETUP  =====================
+Run in your EXISTING Supabase project: SQL Editor > New query. Change YOUR_ADMIN_EMAIL once.
+Safe to run more than once. The same script is also supplied as namsa-supabase.sql.
+Create your admin login in Authentication > Users (same email + a password).
+
+-- 1) ADMIN CHECK
+create or replace function public.is_namsa_admin()
+returns boolean language sql stable as $$
+  select lower(coalesce(auth.jwt() ->> 'email','')) = lower('YOUR_ADMIN_EMAIL')
+$$;
+
+-- 2) COMMITTEES (requires_dues = visitors must have paid enough dues)
+create table if not exists public.namsa_portal_committees (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text default '',
+  url text default '',
+  icon text default '🏛️',
+  coming_soon boolean default false,
+  requires_dues boolean default false,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+alter table public.namsa_portal_committees add column if not exists requires_dues boolean default false;
+
+-- 3) LEADERSHIP (newest year_label = current administration; older = Past executives)
+create table if not exists public.namsa_portal_people (
+  id uuid primary key default gen_random_uuid(),
+  role text not null,
+  name text not null,
+  position text default '',
+  year_label text default '',
+  photo_url text default '',
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+update public.namsa_portal_people set role = 'executive' where role in ('current','past');
+alter table public.namsa_portal_people drop constraint if exists namsa_portal_people_role_check;
+alter table public.namsa_portal_people
+  add constraint namsa_portal_people_role_check check (role in ('patron','executive','appointee'));
+
+-- 4) SETTINGS (logo, Paystack link, full dues, minimum) and 5) FRONT-PAGE PICTURES
+create table if not exists public.namsa_portal_settings (key text primary key, value text default '');
+create table if not exists public.namsa_portal_slides (
+  id uuid primary key default gen_random_uuid(),
+  image_url text not null,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 6) DUES LIST (private: the public can only check one index number)
+create table if not exists public.namsa_portal_dues (
+  index_number text primary key,
+  student_name text default '',
+  amount_paid numeric default 0,
+  created_at timestamptz default now()
+);
+alter table public.namsa_portal_dues add column if not exists amount_paid numeric default 0;
+
+-- Returns {ok, paid}. ok = true when amount paid >= the minimum set in the admin page (default 50).
+drop function if exists public.namsa_check_dues(text);
+create or replace function public.namsa_check_dues(p_index text)
+returns jsonb language sql security definer set search_path = public stable as $$
+  with cfg as (
+    select coalesce((select nullif(value,'')::numeric from public.namsa_portal_settings where key = 'dues_min'), 50) as min_amt
+  ), d as (
+    select amount_paid from public.namsa_portal_dues
+    where index_number = regexp_replace(upper(coalesce(p_index,'')), '[^A-Z0-9]', '', 'g')
+  )
+  select jsonb_build_object(
+    'ok',   coalesce((select amount_paid from d) >= (select min_amt from cfg), false),
+    'paid', coalesce((select amount_paid from d), 0)
+  )
+$$;
+revoke all on function public.namsa_check_dues(text) from public;
+grant execute on function public.namsa_check_dues(text) to anon, authenticated;
+
+-- 6b) PAYSTACK PAYMENTS (filled automatically by the paystack-webhook Edge Function)
+create table if not exists public.namsa_portal_payments (
+  reference text primary key,
+  index_number text not null default '',
+  student_name text default '',
+  email text default '',
+  amount numeric not null,
+  currency text default 'GHS',
+  paid_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+alter table public.namsa_portal_payments enable row level security;
+drop policy if exists "admin read payments" on public.namsa_portal_payments;
+create policy "admin read payments" on public.namsa_portal_payments for select to authenticated
+  using (public.is_namsa_admin());
+
+-- Records one payment once (duplicate Paystack notifications are ignored) and adds it to the dues list.
+create or replace function public.namsa_record_payment(
+  p_reference text, p_index text, p_name text, p_email text,
+  p_amount numeric, p_currency text, p_paid_at timestamptz
+) returns boolean language plpgsql security definer set search_path = public as $$
+declare
+  k text := regexp_replace(upper(coalesce(p_index,'')), '[^A-Z0-9]', '', 'g');
+  n int;
+begin
+  insert into public.namsa_portal_payments (reference, index_number, student_name, email, amount, currency, paid_at)
+  values (p_reference, k, coalesce(p_name,''), coalesce(p_email,''), p_amount, coalesce(p_currency,'GHS'), coalesce(p_paid_at, now()))
+  on conflict (reference) do nothing;
+  get diagnostics n = row_count;
+  if n = 1 and k <> '' then
+    insert into public.namsa_portal_dues (index_number, student_name, amount_paid)
+    values (k, coalesce(p_name,''), p_amount)
+    on conflict (index_number) do update set
+      amount_paid  = public.namsa_portal_dues.amount_paid + excluded.amount_paid,
+      student_name = case when excluded.student_name <> '' then excluded.student_name
+                          else public.namsa_portal_dues.student_name end;
+  end if;
+  return n = 1;
+end $$;
+revoke all on function public.namsa_record_payment(text,text,text,text,numeric,text,timestamptz) from public, anon, authenticated;
+grant execute on function public.namsa_record_payment(text,text,text,text,numeric,text,timestamptz) to service_role;
+
+-- 7) SECURITY (everyone reads, only the admin writes; the dues list is admin-only)
+alter table public.namsa_portal_committees enable row level security;
+alter table public.namsa_portal_people     enable row level security;
+alter table public.namsa_portal_settings   enable row level security;
+alter table public.namsa_portal_slides     enable row level security;
+alter table public.namsa_portal_dues       enable row level security;
+
+drop policy if exists "public read"          on public.namsa_portal_committees;
+drop policy if exists "admin write"          on public.namsa_portal_committees;
+drop policy if exists "public read people"   on public.namsa_portal_people;
+drop policy if exists "admin write people"   on public.namsa_portal_people;
+drop policy if exists "public read settings" on public.namsa_portal_settings;
+drop policy if exists "admin write settings" on public.namsa_portal_settings;
+drop policy if exists "public read slides"   on public.namsa_portal_slides;
+drop policy if exists "admin write slides"   on public.namsa_portal_slides;
+drop policy if exists "admin all dues"       on public.namsa_portal_dues;
+
+create policy "public read"          on public.namsa_portal_committees for select using (true);
+create policy "admin write"          on public.namsa_portal_committees for all to authenticated
+  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
+create policy "public read people"   on public.namsa_portal_people for select using (true);
+create policy "admin write people"   on public.namsa_portal_people for all to authenticated
+  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
+create policy "public read settings" on public.namsa_portal_settings for select using (true);
+create policy "admin write settings" on public.namsa_portal_settings for all to authenticated
+  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
+create policy "public read slides"   on public.namsa_portal_slides for select using (true);
+create policy "admin write slides"   on public.namsa_portal_slides for all to authenticated
+  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
+create policy "admin all dues"       on public.namsa_portal_dues for all to authenticated
+  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
+
+-- 8) PHOTO STORAGE (leader photos, NAMSA logo, front-page pictures)
+insert into storage.buckets (id, name, public) values ('namsa-photos','namsa-photos',true)
+on conflict (id) do update set public = true;
+drop policy if exists "photos public read" on storage.objects;
+drop policy if exists "photos admin write" on storage.objects;
+create policy "photos public read" on storage.objects for select using (bucket_id = 'namsa-photos');
+create policy "photos admin write" on storage.objects for all to authenticated
+  using (bucket_id = 'namsa-photos' and public.is_namsa_admin())
+  with check (bucket_id = 'namsa-photos' and public.is_namsa_admin());
+=====================================================================
+-->
+<style>
+:root{
+  --g1:#04372a;--g2:#0b6b44;--g3:#16a34a;--mint:#e9f7ef;--bg:#f3f9f5;--ink:#0b2a1f;--muted:#4f6a5e;--line:#d3e7da;
+  --blue:#1d6fd6;--grad:linear-gradient(135deg,#0b6b44 0%,#16a34a 55%,#2f86e0 100%);--r:16px;--shadow:0 6px 20px rgba(6,60,40,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-padding-top:76px}
+body{font-family:Georgia,"Times New Roman",serif;color:var(--ink);background:var(--bg);line-height:1.6}
+h1,h2,h3,h4,b,button,.btn,nav,label,small,.tag{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.wrap{width:min(1180px,92%);margin:auto}
+/* nav */
+header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:3px solid;border-image:linear-gradient(90deg,#16a34a,#38bdf8,#2f86e0,#16a34a) 1}
+nav{display:flex;align-items:center;justify-content:space-between;height:66px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.2rem;color:var(--g1)}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-size:1.2rem}
+.links{display:flex;gap:6px;align-items:center}
+.links a,.links button{padding:8px 14px;border-radius:10px;font-weight:600;font-size:.95rem;color:var(--ink);background:none;border:0;cursor:pointer}
+.links a:hover,.links button:hover{background:var(--mint);color:var(--g2)}
+.links .cta{background:var(--grad);color:#fff}
+.links .cta:hover{color:#fff;background:var(--g2)}
+.burger{display:none;background:none;border:0;font-size:1.6rem;cursor:pointer;color:var(--g1)}
+@media(max-width:760px){
+  .burger{display:block}
+  .links{position:absolute;top:69px;left:0;right:0;background:#fff;flex-direction:column;align-items:stretch;padding:12px 4%;border-bottom:1px solid var(--line);display:none}
+  .links.open{display:flex}
+}
+/* hero */
+.hero{position:relative;background:radial-gradient(circle at 85% 15%,rgba(255,255,255,.22),transparent 38%),radial-gradient(circle at 10% 90%,rgba(56,150,255,.30),transparent 40%),linear-gradient(165deg,var(--g1) 0%,var(--g2) 60%,#15803d 100%);color:#fff;padding:64px 0 48px;text-align:center;overflow:hidden}
+.hero .wrap{max-width:860px;position:relative;z-index:3}
+.kicker{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);padding:6px 18px;border-radius:30px;font-size:.95rem;font-weight:600}
+.hero h1{font-size:clamp(2.4rem,7vw,4.6rem);line-height:1.05;font-weight:900;margin:22px 0 14px;letter-spacing:-1px}
+.hero p{font-size:1.15rem;max-width:620px;margin:0 auto 28px;color:#d8f2e3}
+.hero .acts{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.skyline{position:absolute;left:0;bottom:0;width:100%;height:auto;z-index:2;pointer-events:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;border-radius:12px;border:0;font-weight:700;font-size:.95rem;cursor:pointer;background:var(--grad);color:#fff}
+.btn:hover{background:var(--g1)}
+.btn.light{background:#fff;color:var(--g1)}.btn.light:hover{background:var(--mint)}
+.btn.ghost{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.75)}.btn.ghost:hover{background:rgba(255,255,255,.14)}
+.btn.alt{background:#fff;color:var(--g2);border:2px solid var(--line)}.btn.alt:hover{border-color:var(--g3);background:#fff}
+.btn.red{background:#c0392b}.btn.red:hover{background:#962d22}
+.btn.dis{background:#e3ece6;color:#78897f;cursor:not-allowed;pointer-events:none}
+/* hero slideshow, logo, vitals monitor */
+.slides{position:absolute;inset:0;z-index:0}
+.slide{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.4s ease}
+.slide.on{opacity:1}
+.hero::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(120deg,rgba(4,55,42,.88),rgba(11,107,68,.76),rgba(22,150,110,.68),rgba(31,111,208,.60),rgba(4,55,42,.88));background-size:300% 300%;animation:flow 16s ease-in-out infinite}
+@keyframes flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.hero.has-slides .skyline{display:none}
+.hero .wrap>*{animation:up .8s both}
+@keyframes up{from{opacity:0;transform:translateY(18px)}}
+.dots{position:relative;z-index:3;display:flex;gap:8px;justify-content:center;margin-top:22px}
+.dots button{width:12px;height:12px;border-radius:50%;border:2px solid #fff;background:transparent;cursor:pointer}
+.dots button.on{background:#fff}
+.hlogo img{width:104px;height:104px;object-fit:contain;background:#fff;border-radius:50%;padding:6px;margin-bottom:14px}
+.logo.img{background:none}.logo img{width:100%;height:100%;object-fit:contain;border-radius:10px}
+.fl{height:56px;background:#fff;border-radius:12px;padding:4px;margin-bottom:12px}
+.monitor{position:relative;max-width:760px;margin:34px auto 0;background:radial-gradient(120% 140% at 20% 0%,#0b3b5c 0%,#06261f 55%,#04160f 100%);border:2px solid rgba(96,165,250,.55);border-radius:38px;padding:18px 20px 12px;box-shadow:0 0 0 6px rgba(56,150,255,.15),0 20px 50px rgba(21,110,220,.45);text-align:left}
+.ecg{display:block;width:100%;height:64px}
+.ecg path{fill:none;stroke:#4ade80;stroke-width:2.5;filter:drop-shadow(0 0 4px rgba(74,222,128,.8));vector-effect:non-scaling-stroke;stroke-linejoin:round}
+#ecgG{animation:ecg 1.4s linear infinite}
+@keyframes ecg{to{transform:translateX(-140px)}}
+.vit{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+.v{background:rgba(255,255,255,.07);border-radius:12px;padding:10px 6px;text-align:center}
+.v .l{display:block;font:700 .75rem "Segoe UI",system-ui,sans-serif;letter-spacing:.5px;color:#9be7b9}
+.v b{display:inline-block;font-size:clamp(1.3rem,4vw,2rem);color:#fff}
+.v .u{display:block;font:.7rem "Segoe UI",system-ui,sans-serif;color:#9fb8ab}
+.v:nth-child(1) b{color:#60a5fa}.v:nth-child(2) b{color:#facc15}.v:nth-child(3) b{color:#86efac}.v:nth-child(4) b{color:#38bdf8}
+.v.pulse b{animation:beat 1.1s ease-in-out infinite}
+@keyframes beat{50%{transform:scale(1.14)}}
+.cap{text-align:right;font:.7rem "Segoe UI",system-ui,sans-serif;color:#7fa391;margin-top:6px}
+@media(max-width:520px){.vit{grid-template-columns:repeat(2,1fr)}}
+.monitor::before{content:"";position:absolute;top:8px;left:28px;right:28px;height:34%;border-radius:30px;background:linear-gradient(rgba(255,255,255,.13),transparent);pointer-events:none}
+.hero .wrap>.monitor{animation:pop 1s cubic-bezier(.2,1.4,.4,1) .3s both,floaty 5s ease-in-out 1.4s infinite}
+@keyframes pop{from{opacity:0;transform:scale(.3) translateY(70px)}60%{transform:scale(1.06)}to{opacity:1;transform:none}}
+@keyframes floaty{50%{transform:translateY(-9px)}}
+.bubbles{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bubbles i{position:absolute;bottom:-140px;animation:rise linear infinite}
+.bubbles .in{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;text-align:center;font:700 12px/1.15 "Segoe UI",system-ui,sans-serif;padding:8px;border:1px solid;animation:orbit linear infinite}
+.b-w{background:radial-gradient(circle at 30% 30%,#fff,rgba(255,255,255,.55) 60%,rgba(255,255,255,.25));color:#0b6b44;border-color:rgba(11,107,68,.35);box-shadow:0 4px 14px rgba(6,60,40,.15)}
+.b-b{background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.8),rgba(59,150,255,.45) 55%,rgba(37,99,235,.25));color:#0b3d91;border-color:rgba(37,99,235,.4)}
+.b-g{background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.8),rgba(34,197,94,.45) 55%,rgba(11,107,68,.28));color:#064e3b;border-color:rgba(11,107,68,.4)}
+.lb.b-w{background:radial-gradient(circle at 30% 30%,#fff,#eaf8f0)}
+.lb.b-b{background:radial-gradient(circle at 30% 30%,#fff,#cfe4ff)}
+.lb.b-g{background:radial-gradient(circle at 30% 30%,#fff,#c9f0d9)}
+main,footer{position:relative;z-index:1}
+/* shadow under the named bubbles */
+.in.lb{box-shadow:0 14px 24px rgba(4,40,28,.40),inset 0 -10px 16px rgba(4,40,28,.14)}
+.bubbles i.sh::after{content:"";position:absolute;left:10%;right:10%;bottom:-22px;height:18px;border-radius:50%;background:rgba(4,30,20,.45);filter:blur(8px);z-index:-1}
+@keyframes orbit{0%,100%{transform:translate(var(--r),0) scale(1)}12.5%{transform:translate(calc(var(--r)*.7),calc(var(--r)*.7)) scale(1.1)}25%{transform:translate(0,var(--r)) scale(1.2)}37.5%{transform:translate(calc(var(--r)*-.7),calc(var(--r)*.7)) scale(1.1)}50%{transform:translate(calc(var(--r)*-1),0) scale(1)}62.5%{transform:translate(calc(var(--r)*-.7),calc(var(--r)*-.7)) scale(.9)}75%{transform:translate(0,calc(var(--r)*-1)) scale(.8)}87.5%{transform:translate(calc(var(--r)*.7),calc(var(--r)*-.7)) scale(.9)}}
+@keyframes rise{from{transform:translateY(0);opacity:0}10%{opacity:1}90%{opacity:.9}to{transform:translateY(-115vh) translateX(var(--dx));opacity:0}}
+.card,.person{transition:transform .25s,box-shadow .25s}
+.card:hover,.person:hover{transform:translateY(-5px);box-shadow:0 12px 28px rgba(6,60,40,.18)}
+.btn{transition:background .2s}
+label.btn{display:inline-flex;margin:0}
+.sthumb{width:96px;height:58px;object-fit:cover;border-radius:10px;flex:none}
+/* dues gate */
+.lock{align-self:flex-start;background:var(--mint);color:var(--g2);font:700 .78rem "Segoe UI",system-ui,sans-serif;padding:3px 10px;border-radius:20px;margin-bottom:8px}
+.bad{background:#fff3f0;border:1px solid #f1b8ac;color:#8a2c1a;padding:12px 14px;border-radius:12px;margin-top:12px;font:.92rem/1.5 "Segoe UI",system-ui,sans-serif}
+.bad[hidden]{display:none}
+/* sections */
+section{padding:64px 0}
+.sec-h{text-align:center;margin-bottom:34px}
+.sec-h h2{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;color:var(--g1)}
+.sec-h p{color:var(--muted);margin-top:6px}
+.sec-h h2::after{content:"";display:block;width:64px;height:5px;border-radius:5px;background:var(--grad);margin:12px auto 0}
+/* leadership */
+.patron-card{max-width:420px;margin:0 auto 10px;background:#fff;border:2px solid var(--g3);border-radius:24px;padding:32px 24px;text-align:center;box-shadow:var(--shadow)}
+.patron-card .ph{width:220px;height:220px}
+.patron-card b{font-size:1.5rem;display:block;margin-top:14px;color:var(--g1)}
+.tag{display:inline-block;background:var(--grad);color:#fff;font-weight:700;font-size:.85rem;padding:4px 14px;border-radius:20px;margin-top:8px}
+.sub{font-size:1.35rem;font-weight:800;margin:44px 0 20px;text-align:center;color:var(--g1)}
+.yrtag{display:inline-block;background:var(--mint);color:var(--g2);border:1px solid var(--line);font-size:.9rem;padding:3px 12px;border-radius:20px;margin-left:8px;vertical-align:middle}
+.ppl{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px}
+.person{text-align:center;background:#fff;border:1px solid var(--line);border-top:4px solid var(--g3);border-radius:var(--r);padding:22px 14px;box-shadow:var(--shadow)}
+.ph{width:130px;height:130px;border-radius:50%;margin:0 auto 12px;padding:4px;background:var(--grad)}
+.ph img,.ph span{width:100%;height:100%;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:#fff;font-weight:800;font-size:2rem;color:var(--g2);font-family:"Segoe UI",system-ui,sans-serif}
+.person b{display:block;line-height:1.3}.person small{color:var(--g2);font-weight:700;font-size:.9rem}
+.pastwrap{text-align:center;margin-top:50px}
+.pastbadge{background:var(--g1);color:#fff;border:0;font-weight:800;font-size:1rem;padding:14px 28px;border-radius:40px;cursor:pointer;box-shadow:var(--shadow)}
+.pastbadge:hover{background:var(--g2)}
+.pastbadge.on{background:var(--g3)}
+.pastpanel{margin-top:26px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:10px 20px 26px}
+.pastpanel[hidden]{display:none}
+.yr{display:inline-block;background:var(--grad);color:#fff;font-weight:700;padding:6px 20px;border-radius:30px;margin:26px 0 16px;font-family:"Segoe UI",system-ui,sans-serif}
+.pastpanel .ph{width:90px;height:90px}.pastpanel .ph span{font-size:1.4rem}.pastpanel .person{padding:16px 10px;box-shadow:none}
+.pastpanel .ppl{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+/* committees */
+.search{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--line);border-radius:60px;padding:6px 8px 6px 20px;max-width:560px;margin:0 auto 30px}
+.search:focus-within{border-color:var(--g3)}
+.search input{flex:1;border:0;outline:0;font-size:1rem;background:none;min-width:0;padding:10px 0;color:var(--ink);font-family:inherit}
+.count{background:var(--grad);color:#fff;font-weight:700;font-size:.85rem;padding:8px 14px;border-radius:40px;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:22px}
+.card{position:relative;background:#fff;border:1px solid var(--line);border-top:5px solid var(--g3);border-radius:var(--r);padding:26px 24px 24px;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.ico{width:60px;height:60px;border-radius:16px;background:var(--mint);display:grid;place-items:center;font-size:1.9rem;margin-bottom:14px}
+.card h3{font-size:1.15rem;margin-bottom:8px;color:var(--g1)}
+.card p{color:var(--muted);font-size:.95rem;flex:1;margin-bottom:20px}
+.badge{position:absolute;top:14px;right:14px;background:#fff3d6;color:#8a5a00;font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:20px;font-family:"Segoe UI",system-ui,sans-serif}
+.card.soon{border-top-color:#e0a030}
+.empty{text-align:center;color:var(--muted);padding:40px 10px}
+.about{background:rgba(255,255,255,.4);border-block:1px solid var(--line)}
+.about .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px;text-align:center}
+.about div{padding:22px;border-radius:var(--r);background:var(--mint)}
+.about b{display:block;font-size:1.05rem;margin:6px 0}.about span{font-size:1.8rem}.about p{color:var(--muted);font-size:.93rem}
+footer{background:linear-gradient(120deg,#04372a,#0b6b44,#1a5fb4,#0b6b44,#04372a);background-size:300% 300%;animation:flow 22s ease-in-out infinite;color:#e3f4ea;padding:48px 0 22px}
+.fgrid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:30px}
+footer h4{color:#fff;margin-bottom:10px}
+footer a{display:block;padding:3px 0}footer a:hover{text-decoration:underline;color:#fff}
+.copy{border-top:1px solid rgba(255,255,255,.18);margin-top:30px;padding-top:18px;text-align:center;font-size:.88rem}
+@media(max-width:700px){.fgrid{grid-template-columns:1fr}.patron-card .ph{width:180px;height:180px}}
+/* admin */
+.overlay{position:fixed;inset:0;background:rgba(4,40,28,.6);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:20px;width:min(460px,100%);padding:28px;max-height:94vh;overflow:auto}
+.modal h3{margin-bottom:12px;font-size:1.3rem;color:var(--g1)}
+label{display:block;font-weight:600;font-size:.88rem;margin:12px 0 5px}
+input[type=text],input[type=email],input[type=password],input[type=url],textarea,select{width:100%;padding:11px 13px;border:2px solid var(--line);border-radius:11px;font:inherit;color:var(--ink);background:#fff}
+input:focus,textarea:focus,select:focus{border-color:var(--g3);outline:0}
+textarea{resize:vertical;min-height:80px}
+.hint{font-size:.82rem;color:var(--muted);margin-top:4px}
+.row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}.row .btn{flex:1}
+.chk{display:flex;align-items:center;gap:10px;margin-top:14px;font-weight:600}.chk input{width:20px;height:20px;accent-color:var(--g3)}
+.icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:6px;margin-top:8px}
+.icons button{font-size:1.35rem;padding:6px;border-radius:10px;border:2px solid var(--line);background:#fff;cursor:pointer}
+.icons button.sel{border-color:var(--g3);background:var(--mint)}
+.err{color:#c0392b;font-size:.9rem;margin-top:10px;min-height:1.2em}
+#admin{display:none;background:rgba(255,255,255,.6);border-top:4px solid var(--g3)}#admin.show{display:block}
+.adm-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.adm-top h2{color:var(--g1)}.adm-top .row{margin:0}.adm-top .btn{flex:none}
+.item{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:var(--bg);flex-wrap:wrap}
+.item .ico{width:46px;height:46px;font-size:1.4rem;margin:0}
+.item .t{flex:1;min-width:160px}.item .t small{color:var(--muted);display:block;word-break:break-all}
+.item .acts{display:flex;gap:8px}.item .btn{padding:8px 14px;font-size:.85rem}
+.thumb{width:46px;height:46px;border-radius:50%;overflow:hidden;background:var(--mint);display:grid;place-items:center;font-weight:800;flex:none;color:var(--g2)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--g1);color:#fff;padding:12px 22px;border-radius:30px;z-index:200;font-weight:600;max-width:90%;display:none}
+.toast.show{display:block}
+.note{background:#fff8e1;border:1px solid #f0dc9a;color:#7a5b00;padding:12px 16px;border-radius:12px;margin-bottom:18px;font-size:.92rem;font-family:"Segoe UI",system-ui,sans-serif}
+/* in-page viewer */
+#viewer{position:fixed;inset:0;z-index:150;background:#fff;display:none;flex-direction:column}
+#viewer.show{display:flex}
+.vbar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(90deg,#04372a,#0b6b44,#1f6fd0);color:#fff;flex-wrap:wrap}
+.vbar b{flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vbar button,.vbar a{background:rgba(255,255,255,.18);color:#fff;border:0;padding:8px 14px;border-radius:10px;font-weight:700;cursor:pointer;font-size:.9rem}
+.vbar button:hover,.vbar a:hover{background:rgba(255,255,255,.32)}
+#vFrame{flex:1;width:100%;border:0;background:#fff}
+#vLoad{position:absolute;top:58px;left:0;right:0;text-align:center;padding:24px;color:var(--muted);pointer-events:none}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="bubbles" id="bubbles" aria-hidden="true"></div>
+
+<header>
+  <nav class="wrap">
+    <a href="#home" class="brand"><div class="logo" id="hLogo">🎓</div><span>NAMSA-PU</span></a>
+    <button class="burger" id="burger" aria-label="Open menu">☰</button>
+    <div class="links" id="links">
+      <a href="#home">Home</a>
+      <a href="#leadership">Leadership</a>
+      <a href="#committees">Committees</a>
+      <a href="#about">About</a>
+      <button id="adminBtn" aria-label="Admin login" title="Admin login" style="font-size:1.6rem;line-height:1;padding:6px 14px">.</button>
+    </div>
+  </nav>
+</header>
+
+<main id="home">
+  <div class="hero" id="heroBox">
+    <div class="slides" id="slides"></div>
+    <div class="wrap">
+      <div class="hlogo" id="heroLogo"></div>
+      <span class="kicker">Nursing and Midwifery Students Association</span>
+      <h1>Welcome to NAMSA-PU</h1>
+      <p>Your digital home for our leaders, our committees and every student service, all in one place.</p>
+      <div class="acts">
+        <a class="btn light" href="#leadership">Meet our leaders</a>
+        <a class="btn ghost" href="#committees">Open committees</a>
+      </div>
+      <div class="monitor" role="img" aria-label="Illustrative patient monitor showing blood pressure, respiratory rate, pulse and oxygen saturation">
+        <svg class="ecg" viewBox="0 0 1400 80" preserveAspectRatio="none" aria-hidden="true"><g id="ecgG"><path id="ecgP" d=""/></g></svg>
+        <div class="vit">
+          <div class="v"><span class="l">BP</span><b id="vBP">120/80</b><span class="u">mmHg</span></div>
+          <div class="v"><span class="l">RR</span><b id="vRR">16</b><span class="u">breaths/min</span></div>
+          <div class="v pulse"><span class="l">PULSE</span><b id="vHR">72</b><span class="u">bpm</span></div>
+          <div class="v"><span class="l">SpO₂</span><b id="vSP">98</b><span class="u">%</span></div>
+        </div>
+        <div class="cap">Illustrative display, not patient data</div>
+      </div>
+    </div>
+    <div class="dots" id="dots"></div>
+    <svg class="skyline" viewBox="0 0 1200 190" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <g fill="#ffffff" fill-opacity=".14">
+        <rect x="0" y="150" width="1200" height="40"/>
+        <rect x="60" y="110" width="200" height="80"/><rect x="940" y="110" width="200" height="80"/>
+        <polygon points="420,60 600,10 780,60"/><rect x="430" y="60" width="340" height="14"/>
+        <rect x="445" y="80" width="26" height="80"/><rect x="497" y="80" width="26" height="80"/><rect x="549" y="80" width="26" height="80"/>
+        <rect x="601" y="80" width="26" height="80"/><rect x="653" y="80" width="26" height="80"/><rect x="705" y="80" width="26" height="80"/>
+        <rect x="425" y="160" width="350" height="30"/>
+        <rect x="585" y="0" width="30" height="12"/>
+      </g>
+      <g fill="#ffffff" fill-opacity=".30">
+        <rect x="90" y="130" width="22" height="26"/><rect x="140" y="130" width="22" height="26"/><rect x="190" y="130" width="22" height="26"/>
+        <rect x="970" y="130" width="22" height="26"/><rect x="1020" y="130" width="22" height="26"/><rect x="1070" y="130" width="22" height="26"/>
+        <circle cx="600" cy="44" r="10"/>
+      </g>
+    </svg>
+  </div>
+
+  <section id="leadership">
+    <div class="wrap">
+      <div class="sec-h"><h2>Our leadership</h2><p>The people who serve and have served NAMSA-PU.</p></div>
+      <div id="leaders"></div>
+    </div>
+  </section>
+
+  <section id="committees" style="background:rgba(255,255,255,.4);border-block:1px solid var(--line)">
+    <div class="wrap">
+      <div class="sec-h"><h2>Committee platforms</h2><p>Choose a committee to open its website.</p></div>
+      <div class="search">
+        <span aria-hidden="true">🔍</span>
+        <input id="q" type="search" placeholder="Search committees…" aria-label="Search committees" autocomplete="off">
+        <span class="count" id="count">0</span>
+      </div>
+      <div id="notice"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </section>
+
+  <section id="about" class="about">
+    <div class="wrap">
+      <div><span>🤝</span><b>Student-centred</b><p>Every committee works to support nursing and midwifery students.</p></div>
+      <div><span>🔗</span><b>Independent platforms</b><p>Each committee runs its own website. This portal connects them.</p></div>
+      <div><span>📱</span><b>Works everywhere</b><p>Use the portal on your phone, tablet or computer.</p></div>
+    </div>
+  </section>
+
+  <section id="admin">
+    <div class="wrap">
+      <div class="adm-top">
+        <div><h2>Admin dashboard</h2><p style="color:var(--muted)" id="who"></p></div>
+        <div class="row">
+          <button class="btn" id="addBtn">＋ Add committee</button>
+          <button class="btn alt" id="seedBtn">Load default 12</button>
+          <button class="btn alt" id="outBtn">Log out</button>
+        </div>
+      </div>
+      <div id="adminList"></div>
+      <div class="adm-top" style="margin-top:44px">
+        <div><h2>Leadership</h2><p style="color:var(--muted)">Patron, executives and appointees. The newest year is shown as current; older years move to Past executives automatically.</p></div>
+        <div class="row"><button class="btn" id="addP">＋ Add person</button></div>
+      </div>
+      <div id="peopleList"></div>
+
+      <div class="adm-top" style="margin-top:44px">
+        <div><h2>Site branding</h2><p style="color:var(--muted)">The NAMSA logo appears in the header, the front page and the footer.</p></div>
+      </div>
+      <div class="item">
+        <div class="thumb" id="logoPrev">🎓</div>
+        <div class="t"><b>NAMSA logo</b><small>PNG or JPG, square works best (max 5 MB)</small></div>
+        <div class="acts"><label class="btn">Upload logo<input type="file" id="logoF" accept="image/*" hidden></label><button class="btn red" id="logoDel">Remove</button></div>
+      </div>
+
+      <div class="adm-top" style="margin-top:44px">
+        <div><h2>Front page pictures</h2><p style="color:var(--muted)">These rotate automatically on the front page. Use wide landscape photos (max 5 MB each).</p></div>
+        <div class="row"><label class="btn">＋ Upload pictures<input type="file" id="slideF" accept="image/*" multiple hidden></label></div>
+      </div>
+      <div id="slideList"></div>
+
+      <div class="adm-top" style="margin-top:44px">
+        <div><h2>Dues payment settings</h2><p style="color:var(--muted)">Shown to students who have not paid enough to open a locked committee.</p></div>
+      </div>
+      <div class="item" style="display:block">
+        <label for="psUrl" style="margin-top:0">Paystack payment link</label><input type="url" id="psUrl" placeholder="https://paystack.com/pay/your-page">
+        <label for="psFull">Full NAMSA dues (GH₵)</label><input type="text" id="psFull" inputmode="decimal" placeholder="100">
+        <label for="psMin">Minimum paid to open locked committees (GH₵)</label><input type="text" id="psMin" inputmode="decimal" placeholder="50">
+        <div class="row"><button class="btn" id="paySave">Save payment settings</button></div>
+      </div>
+
+      <div class="adm-top" style="margin-top:44px">
+        <div><h2>NAMSA dues list</h2><p style="color:var(--muted)">Payments made on your Paystack page are added automatically once the webhook is set up. Use Excel for payments made outside Paystack or to correct the list. Columns needed: “Index Number”, “Amount” paid, and “Name” (optional). Several payments by one student are added together.</p></div>
+      </div>
+      <div class="item">
+        <div class="t"><b id="duesCount">Checking list…</b><small>Step 1: delete the old list. Step 2: upload the new Excel file.</small></div>
+        <div class="acts"><button class="btn red" id="duesClr">1. Delete current list</button><label class="btn">2. Upload new Excel list<input type="file" id="duesF" accept=".xlsx,.xls,.csv" hidden></label></div>
+      </div>
+      <div class="item">
+        <div class="t"><b>Check a student</b><small id="duesFind">Enter an index number to see what they have paid.</small></div>
+        <div class="acts"><input type="text" id="duesQ" placeholder="Index number" style="width:170px"><button class="btn alt" id="duesQb">Check</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap fgrid">
+    <div><div id="fLogo"></div><h4>NAMSA-PU Digital Portal Hub</h4><p>The central homepage of the Nursing and Midwifery Students Association, PU.</p></div>
+    <div><h4>Explore</h4><a href="#home">Home</a><a href="#leadership">Leadership</a><a href="#committees">Committees</a><a href="#about">About</a></div>
+    <div><a href="#" id="fAdmin" aria-label="Admin login" title="Admin login" style="display:inline-block;font-size:1.6rem;line-height:1;padding:6px 12px">.</a></div>
+  </div>
+  <div class="wrap copy">© <span id="yr"></span> NAMSA-PU. All rights reserved.</div>
+</footer>
+
+<!-- Login modal -->
+<div class="overlay" id="loginO">
+  <div class="modal" role="dialog" aria-label="Admin login">
+    <h3>🔐 Admin login</h3>
+    <label for="em">Email</label><input type="email" id="em" autocomplete="username">
+    <label for="pw">Password</label><input type="password" id="pw" autocomplete="current-password">
+    <div class="err" id="loginErr"></div>
+    <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="loginGo">Log in</button></div>
+  </div>
+</div>
+
+<!-- Committee modal -->
+<div class="overlay" id="formO">
+  <div class="modal" role="dialog" aria-label="Committee form">
+    <h3 id="formT">Add committee</h3>
+    <label for="fn">Name</label><input type="text" id="fn" maxlength="80">
+    <label for="fd">Description</label><textarea id="fd" maxlength="220"></textarea>
+    <label for="fu">Website link (https://…)</label><input type="url" id="fu" placeholder="https://your-site.pages.dev">
+    <label>Icon</label><div class="icons" id="icons"></div>
+    <label for="fi">Or type your own emoji</label><input type="text" id="fi" maxlength="4">
+    <label class="chk"><input type="checkbox" id="fs"> Mark as Coming Soon</label>
+    <label class="chk"><input type="checkbox" id="fr"> Requires paid NAMSA dues (index number check)</label>
+    <div class="err" id="formErr"></div>
+    <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="saveBtn">Save committee</button></div>
+  </div>
+</div>
+
+<!-- Person modal -->
+<div class="overlay" id="personO">
+  <div class="modal" role="dialog" aria-label="Person form">
+    <h3 id="personT">Add person</h3>
+    <label for="pr">Category</label>
+    <select id="pr"><option value="patron">Patron</option><option value="executive" selected>Executive</option><option value="appointee">Appointee</option></select>
+    <label for="pn">Full name</label><input type="text" id="pn" maxlength="80">
+    <label for="pp">Position</label><input type="text" id="pp" maxlength="80" list="posList" placeholder="e.g. President">
+    <datalist id="posList"></datalist>
+    <div id="yrWrap"><label for="py">Year of administration</label><input type="text" id="py" maxlength="20" list="yrList" placeholder="e.g. 2025/2026"><datalist id="yrList"></datalist>
+    <div class="hint">The newest year is the current administration. Adding a newer year moves everyone from older years to Past executives automatically.</div></div>
+    <label for="pf">Photo (upload)</label><input type="file" id="pf" accept="image/*">
+    <label for="pu">Or photo link</label><input type="url" id="pu" placeholder="https://…">
+    <div class="err" id="personErr"></div>
+    <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="pSave">Save person</button></div>
+  </div>
+</div>
+
+<!-- Dues gate -->
+<div class="overlay" id="gateO">
+  <div class="modal" role="dialog" aria-label="NAMSA dues check">
+    <h3>🔒 NAMSA dues check</h3>
+    <p id="gateT" style="color:var(--muted)"></p>
+    <label for="gi">Index number</label><input type="text" id="gi" autocomplete="off" placeholder="Enter your index number">
+    <div class="err" id="gateErr"></div>
+    <div class="bad" id="gateBad" hidden></div>
+    <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="gateGo">Check and continue</button></div>
+  </div>
+</div>
+
+<!-- In-page committee viewer -->
+<div id="viewer" role="dialog" aria-label="Committee platform">
+  <div class="vbar"><button id="vBack">← Back to portal</button><b id="vTitle"></b><a id="vNew" target="_blank" rel="noopener noreferrer">Open in new tab ↗</a></div>
+  <div id="vLoad">Loading platform… If it stays blank, use “Open in new tab”.</div>
+  <iframe id="vFrame" title="Committee platform" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============== CONFIGURATION: paste your EXISTING Supabase project values ============== */
+const CONFIG = {
+  SUPABASE_URL: "YOUR_SUPABASE_URL",          // e.g. https://abcdxyz.supabase.co
+  SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY", // public anon key (never the service_role key)
+  TABLE: "namsa_portal_committees",
+  PEOPLE: "namsa_portal_people",
+  BUCKET: "namsa-photos",
+  SLIDES: "namsa_portal_slides",
+  SETTINGS: "namsa_portal_settings",
+  DUES: "namsa_portal_dues"
+};
+/* ======================================================================================== */
+
+const POSITIONS=["President","Vice President","Secretary","Financial Controller","Women's Commissioner","PRO","Organizer","Head of Appointees","Appointee"];
+const DUES_DEFAULT=new Set(["NAMSA Welfare Committee","Examination Issues Platform","Financial Committee"]);
+const DEFAULTS = [
+  ["NAMSA Welfare Committee","Support, care and welfare services for every student.","🤝"],
+  ["Clinical Committee","Clinical learning, attachments and practical skills.","🩺"],
+  ["Examination Issues Platform","Report and follow up on examination concerns.","📝"],
+  ["Exchange Committee","Student exchange and partnership opportunities.","🌍"],
+  ["Auditorium Committee","Bookings and management of the auditorium.","🎤"],
+  ["Judicial Committee","Fair handling of disputes and disciplinary matters.","⚖️"],
+  ["Financial Committee","Budgets, funds and financial transparency.","💰"],
+  ["Organizing Committee","Planning and running NAMSA events.","📋"],
+  ["Health and Education Committee","Health awareness and academic support programs.","📚"],
+  ["Entertainment Committee","Social nights, talent shows and fun activities.","🎉"],
+  ["Planning Committee","Long-term plans, calendars and strategy.","🗓️"],
+  ["Sports and Health Committee","Sports, fitness and healthy living.","⚽"]
+].map((c,i)=>({id:"d"+i,name:c[0],description:c[1],icon:c[2],url:"",coming_soon:false,requires_dues:DUES_DEFAULT.has(c[0]),sort_order:i+1}));
+/* sample leadership shown only in preview mode (before Supabase is connected) */
+const DEMO=[{id:"x0",role:"patron",name:"Patron's Name",position:"Patron"}]
+  .concat(["President","Vice President","Secretary","Financial Controller","Women's Commissioner","PRO","Organizer"].map((p,i)=>({id:"x"+(i+1),role:"executive",name:"Name Surname",position:p,year_label:"2025/2026"})))
+  .concat([{id:"x9",role:"appointee",name:"Name Surname",position:"Head of Appointees",year_label:"2025/2026"},
+           {id:"x10",role:"executive",name:"Name Surname",position:"President",year_label:"2024/2025"},
+           {id:"x11",role:"executive",name:"Name Surname",position:"Secretary",year_label:"2024/2025"}]);
+
+const ICONS=["🏛️","🤝","🩺","📝","🌍","🎤","⚖️","💰","📋","📚","🎉","🗓️","⚽","🏥","💊","🎓","🔬","🧠","❤️","🏆","📢","🛡️","💡","🎨","🎵","🧑‍⚕️","📊","🔔","🌱","🚑"];
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const configured=!CONFIG.SUPABASE_URL.startsWith("YOUR_")&&!CONFIG.SUPABASE_ANON_KEY.startsWith("YOUR_");
+const sb=configured?supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY):null;
+let slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],session=null,editingId=null,pickedIcon="🏛️",pastOpen=false;
+
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2800)}
+const safeUrl=u=>{try{const x=new URL(u);return /^https?:$/.test(x.protocol)?x.href:""}catch{return""}};
+
+async function load(){
+  $("#notice").innerHTML="";
+  if(!sb){list=DEFAULTS;people=DEMO;$("#notice").innerHTML='<div class="note">Preview mode: add your Supabase URL and anon key in the CONFIG block to load and save committees and leaders permanently.</div>';}
+  else{
+    const {data,error}=await sb.from(CONFIG.TABLE).select("*").order("sort_order").order("created_at");
+    if(error){list=DEFAULTS;$("#notice").innerHTML='<div class="note">Could not load committees from Supabase ('+esc(error.message)+'). Showing the default list. Check that the table exists and has a public read policy.</div>';}
+    else list=data;
+    const r=await sb.from(CONFIG.PEOPLE).select("*").order("sort_order").order("created_at");
+    people=r.error?[]:r.data;
+    const s1=await sb.from(CONFIG.SLIDES).select("*").order("sort_order").order("created_at");
+    slides=s1.error?[]:s1.data.filter(x=>safeUrl(x.image_url));
+    const s2=await sb.from(CONFIG.SETTINGS).select("*");
+    settings=s2.error?{}:Object.fromEntries(s2.data.map(x=>[x.key,x.value]));
+  }
+  render();renderPeople();renderAdmin();renderBrand();renderSlides();
+  if(!window.bubblesBuilt){window.bubblesBuilt=true;buildBubbles()}
+}
+
+/* ---- leadership ---- */
+const ini=n=>n.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
+const rank=p=>{const i=POSITIONS.findIndex(x=>x.toLowerCase()===(p.position||"").trim().toLowerCase());return i<0?99:i};
+const byRole=(a,b)=>(a.role===b.role?0:a.role==="executive"?-1:1)||rank(a)-rank(b)||(a.sort_order||0)-(b.sort_order||0);
+const photo=p=>{const u=safeUrl(p.photo_url);return u?`<img src="${esc(u)}" alt="${esc(p.name)}" loading="lazy">`:`<span>${esc(ini(p.name))}</span>`};
+const person=p=>`<div class="person"><div class="ph">${photo(p)}</div><b>${esc(p.name)}</b><small>${esc(p.position)}</small></div>`;
+const yearsOf=()=>[...new Set(people.filter(p=>p.role!=="patron"&&p.year_label).map(p=>p.year_label))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+
+function renderPeople(){
+  const years=yearsOf(),cur=years[0],pastYears=years.slice(1);
+  const staff=people.filter(p=>p.role!=="patron");
+  let h="";
+  const pats=people.filter(p=>p.role==="patron");
+  if(pats.length)h+=pats.map(p=>`<div class="patron-card"><div class="ph">${photo(p)}</div><b>${esc(p.name)}</b><span class="tag">${esc(p.position||"Patron")}</span></div>`).join("");
+  if(cur){
+    const ex=staff.filter(p=>p.year_label===cur&&p.role==="executive").sort(byRole);
+    const ap=staff.filter(p=>p.year_label===cur&&p.role==="appointee").sort(byRole);
+    if(ex.length)h+=`<h3 class="sub">Current administration<span class="yrtag">${esc(cur)}</span></h3><div class="ppl">${ex.map(person).join("")}</div>`;
+    if(ap.length)h+=`<h3 class="sub">Appointees</h3><div class="ppl">${ap.map(person).join("")}</div>`;
+  }
+  if(pastYears.length){
+    const n=staff.filter(p=>p.year_label!==cur).length;
+    h+=`<div class="pastwrap"><button class="pastbadge ${pastOpen?"on":""}" id="pastBtn" aria-expanded="${pastOpen}">🎖 Past executives (${n}) ${pastOpen?"▲":"▼"}</button>
+    <div class="pastpanel" id="pastPanel" ${pastOpen?"":"hidden"}>${pastYears.map(y=>`<div><span class="yr">${esc(y)} administration</span><div class="ppl">${staff.filter(p=>p.year_label===y).sort(byRole).map(person).join("")}</div></div>`).join("")}</div></div>`;
+  }
+  $("#leaders").innerHTML=h||'<div class="empty">Leadership profiles will appear here once the admin adds them.</div>';
+}
+$("#leaders").onclick=e=>{if(e.target.closest("#pastBtn")){pastOpen=!pastOpen;renderPeople()}};
+
+function renderPeopleAdmin(){
+  const lab={patron:"Patron",executive:"Executive",appointee:"Appointee"};
+  const sorted=[...people].sort((a,b)=>(a.role==="patron"?-1:b.role==="patron"?1:0)||(b.year_label||"").localeCompare(a.year_label||"",undefined,{numeric:true})||byRole(a,b));
+  $("#peopleList").innerHTML=sorted.length?sorted.map(p=>`<div class="item">
+    <div class="thumb">${safeUrl(p.photo_url)?`<img src="${esc(safeUrl(p.photo_url))}" alt="">`:esc(ini(p.name))}</div>
+    <div class="t"><b>${esc(p.name)}</b><small>${lab[p.role]} · ${esc(p.position)}${p.year_label?" · "+esc(p.year_label):""}</small></div>
+    <div class="acts"><button class="btn alt" data-pedit="${esc(p.id)}">Edit</button><button class="btn red" data-pdel="${esc(p.id)}">Delete</button></div>
+  </div>`).join(""):'<div class="empty">No people added yet. Select “Add person”.</div>';
+}
+
+/* ---- committees ---- */
+function render(){
+  const q=$("#q").value.trim().toLowerCase();
+  const rows=list.filter(c=>(c.name+" "+c.description).toLowerCase().includes(q));
+  $("#count").textContent=rows.length+(rows.length===1?" committee":" committees");
+  $("#grid").innerHTML=rows.length?rows.map(c=>{
+    const u=safeUrl(c.url);
+    const btn=c.coming_soon?'<span class="btn dis">Coming soon</span>'
+      :u?`<button class="btn" data-open="${esc(c.id)}">Visit Platform</button>`
+      :'<span class="btn dis">Link not set</span>';
+    return `<article class="card ${c.coming_soon?"soon":""}">
+      ${c.coming_soon?'<span class="badge">Coming soon</span>':""}
+      <div class="ico">${esc(c.icon||"🏛️")}</div><h3>${esc(c.name)}</h3>${c.requires_dues?'<span class="lock">🔒 NAMSA dues required</span>':""}<p>${esc(c.description)}</p>${btn}</article>`;
+  }).join(""):'<div class="empty" style="grid-column:1/-1">No committees match your search. Try a different word.</div>';
+}
+
+function renderAdmin(){
+  if(!session)return;renderPeopleAdmin();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();
+  $("#adminList").innerHTML=list.length?list.map(c=>`<div class="item">
+    <div class="ico">${esc(c.icon||"🏛️")}</div>
+    <div class="t"><b>${esc(c.name)}</b> ${c.coming_soon?"🟡 Coming soon":""}${c.requires_dues?" 🔒 Dues":""}<small>${esc(c.url||"No link yet")}</small></div>
+    <div class="acts"><button class="btn alt" data-edit="${esc(c.id)}">Edit</button><button class="btn red" data-del="${esc(c.id)}">Delete</button></div>
+  </div>`).join(""):'<div class="empty">No committees yet. Select “Add committee” or “Load default 12”.</div>';
+}
+
+/* ---- modals ---- */
+const open=id=>$(id).classList.add("show"),close=()=>document.querySelectorAll(".overlay").forEach(o=>o.classList.remove("show"));
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=close);
+document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("mousedown",e=>{if(e.target===o)close()}));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")close()});
+
+function adminEntry(e){
+  e&&e.preventDefault();$("#links").classList.remove("open");
+  if(session){$("#admin").classList.add("show");$("#admin").scrollIntoView();}
+  else{$("#loginErr").textContent="";open("#loginO");setTimeout(()=>$("#em").focus(),50);}
+}
+$("#adminBtn").onclick=adminEntry;$("#fAdmin").onclick=adminEntry;
+
+async function login(){
+  if(!sb){$("#loginErr").textContent="Add your Supabase details in the CONFIG block first.";return}
+  $("#loginErr").textContent="Signing in…";
+  const {error}=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});
+  if(error){$("#loginErr").textContent="Login failed: "+error.message;return}
+  $("#pw").value="";close();toast("Welcome back, admin");
+}
+$("#loginGo").onclick=login;
+$("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+$("#outBtn").onclick=async()=>{await sb.auth.signOut();toast("Logged out")};
+
+function setSession(s){
+  session=s;
+  $("#admin").classList.toggle("show",!!s);
+  $("#adminBtn").textContent=s?"Dashboard":".";
+  if(s){$("#who").textContent="Signed in as "+s.user.email;renderAdmin();}
+}
+if(sb){
+  sb.auth.getSession().then(({data})=>setSession(data.session));
+  sb.auth.onAuthStateChange((_e,s)=>setSession(s));
+}
+
+/* ---- committees: add / edit / delete ---- */
+function drawIcons(){
+  $("#icons").innerHTML=ICONS.map(i=>`<button type="button" class="${i===pickedIcon?"sel":""}" data-ic="${i}">${i}</button>`).join("");
+}
+$("#icons").onclick=e=>{const b=e.target.closest("[data-ic]");if(!b)return;pickedIcon=b.dataset.ic;$("#fi").value="";drawIcons()};
+$("#fi").oninput=e=>{if(e.target.value.trim()){pickedIcon=e.target.value.trim();drawIcons()}};
+
+function openForm(c){
+  editingId=c?c.id:null;
+  $("#formT").textContent=c?"Edit committee":"Add committee";
+  $("#fn").value=c?.name||"";$("#fd").value=c?.description||"";$("#fu").value=c?.url||"";
+  $("#fs").checked=!!c?.coming_soon;$("#fr").checked=!!c?.requires_dues;pickedIcon=c?.icon||"🏛️";$("#fi").value="";
+  $("#formErr").textContent="";drawIcons();open("#formO");
+}
+$("#addBtn").onclick=()=>openForm();
+$("#adminList").onclick=async e=>{
+  const ed=e.target.closest("[data-edit]"),del=e.target.closest("[data-del]");
+  if(ed)openForm(list.find(c=>String(c.id)===ed.dataset.edit));
+  if(del){
+    const c=list.find(c=>String(c.id)===del.dataset.del);
+    if(!confirm('Delete "'+c.name+'"? This cannot be undone.'))return;
+    const {error}=await sb.from(CONFIG.TABLE).delete().eq("id",c.id);
+    if(error)return toast("Delete failed: "+error.message);
+    toast("Committee deleted");load();
+  }
+};
+$("#saveBtn").onclick=async()=>{
+  const name=$("#fn").value.trim(),url=$("#fu").value.trim();
+  if(!name){$("#formErr").textContent="Enter a committee name.";return}
+  if(url&&!safeUrl(url)){$("#formErr").textContent="Enter a full link starting with https://";return}
+  const row={name,description:$("#fd").value.trim(),url,icon:pickedIcon,coming_soon:$("#fs").checked,requires_dues:$("#fr").checked};
+  let error;
+  if(editingId)({error}=await sb.from(CONFIG.TABLE).update(row).eq("id",editingId));
+  else{
+    row.sort_order=list.reduce((m,c)=>Math.max(m,c.sort_order||0),0)+1;
+    ({error}=await sb.from(CONFIG.TABLE).insert(row));
+  }
+  if(error){$("#formErr").textContent="Save failed: "+error.message;return}
+  close();toast("Committee saved");load();
+};
+$("#seedBtn").onclick=async()=>{
+  if(!confirm("Add the 12 default committees? Existing ones are kept."))return;
+  const have=new Set(list.map(c=>c.name.toLowerCase()));
+  const rows=DEFAULTS.filter(d=>!have.has(d.name.toLowerCase())).map(({id,...r},i)=>({...r,sort_order:list.length+i+1}));
+  if(!rows.length)return toast("All defaults already exist");
+  const {error}=await sb.from(CONFIG.TABLE).insert(rows);
+  if(error)return toast("Failed: "+error.message);
+  toast("Default committees added");load();
+};
+
+/* ---- leadership: add / edit / delete ---- */
+$("#posList").innerHTML=POSITIONS.map(p=>`<option value="${esc(p)}">`).join("");
+const showYr=()=>$("#yrWrap").style.display=$("#pr").value==="patron"?"none":"block";
+$("#pr").onchange=showYr;
+function openPerson(p){
+  editingP=p?p.id:null;$("#personT").textContent=p?"Edit person":"Add person";
+  $("#pr").value=p?.role||"executive";$("#pn").value=p?.name||"";$("#pp").value=p?.position||"";
+  $("#py").value=p?.year_label||yearsOf()[0]||"";$("#pu").value=p?.photo_url||"";$("#pf").value="";$("#personErr").textContent="";
+  $("#yrList").innerHTML=yearsOf().map(y=>`<option value="${esc(y)}">`).join("");
+  showYr();open("#personO");
+}
+$("#addP").onclick=()=>openPerson();
+$("#peopleList").onclick=async e=>{
+  const ed=e.target.closest("[data-pedit]"),del=e.target.closest("[data-pdel]");
+  if(ed)openPerson(people.find(p=>String(p.id)===ed.dataset.pedit));
+  if(del){
+    const p=people.find(p=>String(p.id)===del.dataset.pdel);
+    if(!confirm('Delete "'+p.name+'"?'))return;
+    const {error}=await sb.from(CONFIG.PEOPLE).delete().eq("id",p.id);
+    if(error)return toast("Delete failed: "+error.message);
+    toast("Person deleted");load();
+  }
+};
+$("#pSave").onclick=async()=>{
+  const err=m=>$("#personErr").textContent=m;
+  const name=$("#pn").value.trim(),role=$("#pr").value,year=$("#py").value.trim(),file=$("#pf").files[0];
+  let url=$("#pu").value.trim();
+  if(!name)return err("Enter the person's name.");
+  if(role!=="patron"&&!year)return err("Enter the year of administration, e.g. 2025/2026.");
+  if(url&&!safeUrl(url))return err("Photo link must start with https://");
+  if(file){
+    if(!file.type.startsWith("image/"))return err("Choose an image file.");
+    if(file.size>4*1024*1024)return err("Photo must be under 4 MB.");
+    err("Uploading photo…");
+    const path=Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+(file.name.split(".").pop()||"jpg").toLowerCase();
+    const up=await sb.storage.from(CONFIG.BUCKET).upload(path,file,{contentType:file.type});
+    if(up.error)return err("Upload failed: "+up.error.message);
+    url=sb.storage.from(CONFIG.BUCKET).getPublicUrl(path).data.publicUrl;
+  }
+  const row={role,name,position:$("#pp").value.trim()||(role==="patron"?"Patron":""),year_label:role==="patron"?"":year,photo_url:url};
+  let error;
+  if(editingP)({error}=await sb.from(CONFIG.PEOPLE).update(row).eq("id",editingP));
+  else{row.sort_order=people.reduce((m,p)=>Math.max(m,p.sort_order||0),0)+1;({error}=await sb.from(CONFIG.PEOPLE).insert(row));}
+  if(error)return err("Save failed: "+error.message);
+  close();toast("Person saved");load();
+};
+
+/* ---- in-page committee viewer ---- */
+function openViewer(c){
+  const u=safeUrl(c.url);if(!u)return;
+  $("#vTitle").textContent=c.name;$("#vNew").href=u;$("#vLoad").style.display="block";
+  $("#vFrame").onload=()=>$("#vLoad").style.display="none";
+  $("#vFrame").src=u;$("#viewer").classList.add("show");document.body.style.overflow="hidden";
+  location.hash="viewer";
+}
+function closeViewer(){
+  $("#viewer").classList.remove("show");$("#vFrame").src="about:blank";document.body.style.overflow="";
+}
+$("#grid").onclick=e=>{const b=e.target.closest("[data-open]");if(!b)return;const c=list.find(c=>String(c.id)===b.dataset.open);if(c.requires_dues)gate(c);else openViewer(c)};
+$("#vBack").onclick=()=>location.hash==="#viewer"?history.back():closeViewer();
+window.addEventListener("hashchange",()=>{if(location.hash!=="#viewer")closeViewer()});
+
+/* ---- branding, front-page pictures, vitals ---- */
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+function renderBrand(){
+  const u=safeUrl(settings.logo_url||""),img=c=>`<img src="${esc(u)}" alt="NAMSA-PU logo" class="${c}">`;
+  $("#hLogo").innerHTML=u?img(""):"🎓";$("#hLogo").classList.toggle("img",!!u);
+  $("#heroLogo").innerHTML=u?img(""):"";$("#fLogo").innerHTML=u?img("fl"):"";
+  if(u)document.querySelector('link[rel="icon"]').href=u;
+}
+function startTimer(){clearInterval(timer);if(slides.length>1&&!reduced)timer=setInterval(()=>goSlide(si+1),5000)}
+function goSlide(i){
+  si=(i+slides.length)%slides.length;
+  document.querySelectorAll("#slides .slide").forEach((el,k)=>el.classList.toggle("on",k===si));
+  document.querySelectorAll("#dots button").forEach((el,k)=>el.classList.toggle("on",k===si));
+}
+function renderSlides(){
+  if(si>=slides.length)si=0;
+  $("#heroBox").classList.toggle("has-slides",slides.length>0);
+  $("#slides").innerHTML=slides.map((x,i)=>`<img class="slide ${i===si?"on":""}" src="${esc(safeUrl(x.image_url))}" alt="">`).join("");
+  $("#dots").innerHTML=slides.length>1?slides.map((_,i)=>`<button class="${i===si?"on":""}" data-s="${i}" aria-label="Show picture ${i+1}"></button>`).join(""):"";
+  startTimer();
+}
+$("#dots").onclick=e=>{const b=e.target.closest("[data-s]");if(b){goSlide(+b.dataset.s);startTimer()}};
+(function(){
+  const beat="h20 q5 -10 10 0 h12 l4 6 l5 -40 l5 50 l4 -16 h14 q8 -14 16 0 h50";
+  $("#ecgP").setAttribute("d","M0 40 "+(beat+" ").repeat(12));
+  const r=(a,b)=>Math.floor(a+Math.random()*(b-a+1));
+  const tick=()=>{$("#vBP").textContent=r(114,124)+"/"+r(74,82);$("#vRR").textContent=r(14,18);$("#vHR").textContent=r(68,78);$("#vSP").textContent=r(97,99)};
+  tick();if(!reduced)setInterval(tick,2200);
+})();
+
+function renderBrandAdmin(){
+  const u=safeUrl(settings.logo_url||"");
+  $("#logoPrev").innerHTML=u?`<img src="${esc(u)}" alt="">`:"🎓";
+}
+function renderSlideAdmin(){
+  $("#slideList").innerHTML=slides.length?slides.map((x,i)=>`<div class="item">
+    <img class="sthumb" src="${esc(safeUrl(x.image_url))}" alt="">
+    <div class="t"><b>Picture ${i+1}</b></div>
+    <div class="acts"><button class="btn red" data-sdel="${esc(x.id)}">Delete</button></div>
+  </div>`).join(""):'<div class="empty">No pictures yet. Select “Upload pictures” to start the front-page slideshow.</div>';
+}
+async function uploadImg(file,folder){
+  if(!file.type.startsWith("image/"))throw new Error("Choose image files only.");
+  if(file.size>5*1024*1024)throw new Error(file.name+" is over 5 MB.");
+  const path=folder+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+(file.name.split(".").pop()||"jpg").toLowerCase();
+  const up=await sb.storage.from(CONFIG.BUCKET).upload(path,file,{contentType:file.type});
+  if(up.error)throw up.error;
+  return sb.storage.from(CONFIG.BUCKET).getPublicUrl(path).data.publicUrl;
+}
+$("#logoF").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    toast("Uploading logo…");
+    const url=await uploadImg(f,"logo");
+    const {error}=await sb.from(CONFIG.SETTINGS).upsert({key:"logo_url",value:url});
+    if(error)throw error;
+    toast("Logo saved");load();
+  }catch(x){toast("Failed: "+x.message)}
+  e.target.value="";
+};
+$("#logoDel").onclick=async()=>{
+  if(!confirm("Remove the NAMSA logo?"))return;
+  const {error}=await sb.from(CONFIG.SETTINGS).delete().eq("key","logo_url");
+  if(error)return toast("Failed: "+error.message);
+  toast("Logo removed");load();
+};
+$("#slideF").onchange=async e=>{
+  const files=[...e.target.files];if(!files.length)return;
+  try{
+    let n=slides.reduce((m,x)=>Math.max(m,x.sort_order||0),0);
+    for(const [i,f] of files.entries()){
+      toast("Uploading picture "+(i+1)+" of "+files.length+"…");
+      const url=await uploadImg(f,"hero");
+      const {error}=await sb.from(CONFIG.SLIDES).insert({image_url:url,sort_order:++n});
+      if(error)throw error;
+    }
+    toast("Pictures added");load();
+  }catch(x){toast("Failed: "+x.message)}
+  e.target.value="";
+};
+$("#slideList").onclick=async e=>{
+  const d=e.target.closest("[data-sdel]");if(!d)return;
+  if(!confirm("Delete this picture from the front page?"))return;
+  const {error}=await sb.from(CONFIG.SLIDES).delete().eq("id",d.dataset.sdel);
+  if(error)return toast("Delete failed: "+error.message);
+  toast("Picture deleted");load();
+};
+
+function buildBubbles(){
+  if(reduced)return;
+  const cls=["b-w","b-b","b-g"],rnd=(a,b)=>a+Math.random()*(b-a);
+  const names=[...list].sort(()=>Math.random()-.5).slice(0,6).map(c=>c.name.replace(/\s+(Committee|Platform)$/i,""));
+  const mk=(txt,i)=>{
+    const big=!!txt,z=big?rnd(104,128):rnd(14,52);
+    return `<i class="${big?"sh":""}" style="width:${z}px;height:${z}px;left:${rnd(2,90)}%;--dx:${rnd(-40,40)|0}px;animation-duration:${big?rnd(20,30):rnd(9,18)}s;animation-delay:-${rnd(0,18)}s"><span class="in ${cls[i%3]} ${big?"lb":""}" style="--r:${big?rnd(12,22)|0:rnd(6,14)|0}px;animation-duration:${rnd(6,10)}s">${txt?esc(txt):""}</span></i>`;
+  };
+  $("#bubbles").innerHTML=["NAMSA-PU","NAMSA-PU",...names].map(mk).join("")+Array.from({length:14},(_,i)=>mk("",i)).join("");
+}
+
+/* ---- dues gate (visitors) ---- */
+const normIdx=v=>String(v??"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const num=(v,d)=>{const n=parseFloat(v);return isFinite(n)?n:d};
+const cedi=n=>"GH₵"+(+Number(n).toFixed(2));
+let gateC=null;
+const savedIdx=()=>{try{return sessionStorage.getItem("namsa_idx")||""}catch{return""}};
+const saveIdx=v=>{try{sessionStorage.setItem("namsa_idx",v)}catch{}};
+async function checkDues(idx){
+  const {data,error}=await sb.rpc("namsa_check_dues",{p_index:idx});
+  if(error)throw error;
+  return data||{ok:false,paid:0};
+}
+async function gate(c){
+  gateC=c;
+  const s=savedIdx();
+  if(sb&&s){try{if((await checkDues(s)).ok){openViewer(c);return}}catch{}}
+  $("#gateT").textContent="“"+c.name+"” is for students who have paid their NAMSA dues. Enter your index number to continue.";
+  $("#gi").value=s;$("#gateErr").textContent="";$("#gateBad").hidden=true;
+  open("#gateO");setTimeout(()=>$("#gi").focus(),50);
+}
+function showPayMessage(paid){
+  const min=num(settings.dues_min,50),full=num(settings.dues_full,100),pct=Math.round(min/full*100);
+  const link=safeUrl(settings.paystack_url||"");
+  const head=paid>0
+    ?`<b>You have paid ${cedi(paid)} so far, which is below the ${cedi(min)} needed.</b><br>Pay at least ${cedi(min-paid)} more to open this committee, or ${cedi(Math.max(full-paid,0))} to complete your full dues.`
+    :`<b>We could not find a payment for this index number.</b><br>Please pay your NAMSA dues before you can report an issue to this committee. Pay ${pct}% (${cedi(min)}) or pay in full (${cedi(full)}).`;
+  $("#gateBad").innerHTML=head+`<br><br>Use your index number when paying so your payment can be matched. Your access opens once NAMSA updates the paid list.`
+    +(link?`<br><a class="btn" style="margin-top:10px" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Pay on Paystack ↗</a>`:`<br>Please contact a NAMSA executive to pay.`);
+  $("#gateBad").hidden=false;
+}
+async function gateGo(){
+  const idx=normIdx($("#gi").value);
+  $("#gateBad").hidden=true;
+  if(!idx){$("#gateErr").textContent="Enter your index number.";return}
+  if(!sb){$("#gateErr").textContent="The dues check needs the portal to be connected to Supabase.";return}
+  $("#gateErr").textContent="Checking…";
+  try{
+    const r=await checkDues(idx);
+    if(r.ok){saveIdx(idx);$("#gateErr").textContent="";close();openViewer(gateC)}
+    else{$("#gateErr").textContent="";showPayMessage(num(r.paid,0))}
+  }catch(x){$("#gateErr").textContent="Could not check right now. Check your connection and try again."}
+}
+$("#gateGo").onclick=gateGo;
+$("#gi").addEventListener("keydown",e=>{if(e.key==="Enter")gateGo()});
+
+/* ---- payment settings + dues list (admin) ---- */
+function renderPayAdmin(){
+  $("#psUrl").value=settings.paystack_url||"";
+  $("#psFull").value=settings.dues_full||"100";
+  $("#psMin").value=settings.dues_min||"50";
+}
+$("#paySave").onclick=async()=>{
+  const url=$("#psUrl").value.trim(),full=parseFloat($("#psFull").value),min=parseFloat($("#psMin").value);
+  if(url&&!safeUrl(url))return toast("The payment link must start with https://");
+  if(!(full>0)||!(min>0)||min>full)return toast("Enter valid amounts. The minimum cannot be more than the full dues.");
+  const {error}=await sb.from(CONFIG.SETTINGS).upsert([{key:"paystack_url",value:url},{key:"dues_full",value:String(full)},{key:"dues_min",value:String(min)}]);
+  if(error)return toast("Failed: "+error.message);
+  toast("Payment settings saved");load();
+};
+async function refreshDues(){
+  if(!sb||!session)return;
+  const min=num(settings.dues_min,50);
+  const a=await sb.from(CONFIG.DUES).select("index_number",{count:"exact",head:true});
+  const b=await sb.from(CONFIG.DUES).select("index_number",{count:"exact",head:true}).gte("amount_paid",min);
+  $("#duesCount").textContent=a.error?"Could not read the dues list ("+a.error.message+")":a.count+" students on the list, "+(b.count||0)+" have paid "+cedi(min)+" or more";
+}
+function findCol(head,pats,skip){
+  for(const p of pats){const i=head.findIndex((h,k)=>k!==skip&&p.test(h));if(i>=0)return i}
+  return -1;
+}
+$("#duesF").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    if(typeof XLSX==="undefined")throw new Error("The Excel reader did not load. Check your internet connection and reload the page.");
+    toast("Reading file…");
+    const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+    if(!rows.length)throw new Error("The file is empty.");
+    const head=rows[0].map(h=>String(h).toLowerCase());
+    let ci=findCol(head,[/index/,/student.?id|matric|reg.?no/]);
+    const hasHead=ci>=0;if(!hasHead)ci=0;
+    const start=hasHead?1:0;
+    const ai=hasHead?findCol(head,[/amount.?paid|paid.?amount/,/^amount/,/amount|paid/],ci):-1;
+    const ni=hasHead?findCol(head,[/name/],ci):-1;
+    const full=num(settings.dues_full,100),min=num(settings.dues_min,50);
+    const map=new Map();
+    for(const r of rows.slice(start)){
+      const k=normIdx(r[ci]);if(!k)continue;
+      const amt=ai>=0?num(String(r[ai]).replace(/[^0-9.\-]/g,""),0):full;
+      const cur=map.get(k)||{name:"",amt:0};
+      cur.amt+=amt;if(ni>=0&&String(r[ni]).trim())cur.name=String(r[ni]).trim();
+      map.set(k,cur);
+    }
+    if(!map.size)throw new Error("No index numbers found. Add a column headed Index Number.");
+    const all=[...map].map(([index_number,v])=>({index_number,student_name:v.name,amount_paid:v.amt}));
+    const ok=all.filter(x=>x.amount_paid>=min).length;
+    if(!confirm("Save "+all.length+" students? "+ok+" of them have paid "+cedi(min)+" or more and will open locked committees."+(ai<0?"\\n\\nNo Amount column was found, so everyone is treated as fully paid ("+cedi(full)+").":"")))throw new Error("Cancelled.");
+    for(let i=0;i<all.length;i+=500){
+      toast("Saving "+Math.min(i+500,all.length)+" of "+all.length+"…");
+      const u=await sb.from(CONFIG.DUES).upsert(all.slice(i,i+500));
+      if(u.error)throw u.error;
+    }
+    toast("Dues list saved: "+all.length+" students");
+    refreshDues();
+  }catch(x){toast(x.message==="Cancelled."?"Upload cancelled":"Failed: "+x.message)}
+  e.target.value="";
+};
+$("#duesClr").onclick=async()=>{
+  if(!confirm("Delete the whole dues list? Nobody can open 🔒 committees until you upload a new list."))return;
+  const {error}=await sb.from(CONFIG.DUES).delete().neq("index_number","");
+  if(error)return toast("Failed: "+error.message);
+  toast("Dues list deleted. You can now upload the new list.");refreshDues();
+};
+$("#duesQb").onclick=async()=>{
+  const k=normIdx($("#duesQ").value);if(!k)return;
+  const {data,error}=await sb.from(CONFIG.DUES).select("*").eq("index_number",k).maybeSingle();
+  $("#duesFind").textContent=error?"Error: "+error.message:data?(data.student_name||"No name")+" has paid "+cedi(data.amount_paid)+(data.amount_paid>=num(settings.dues_min,50)?" (can open locked committees)":" (not enough yet)"):"Not found on the list.";
+};
+
+/* ---- misc ---- */
+$("#q").oninput=render;
+$("#burger").onclick=()=>$("#links").classList.toggle("open");
+document.querySelectorAll(".links a").forEach(a=>a.addEventListener("click",()=>$("#links").classList.remove("open")));
+$("#yr").textContent=new Date().getFullYear();
+load();
+</script>
+</body>
+</html>
