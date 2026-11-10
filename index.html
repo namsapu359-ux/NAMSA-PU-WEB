@@ -10,15 +10,50 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <!--
 =====================  ONE-TIME SUPABASE SETUP  =====================
-Run in your EXISTING Supabase project: SQL Editor > New query. Change YOUR_ADMIN_EMAIL once.
+Run in your EXISTING Supabase project: SQL Editor > New query. Change YOUR_ADMIN_EMAIL once (first admin).
 Safe to run more than once. The same script is also supplied as namsa-supabase.sql.
-Create your admin login in Authentication > Users (same email + a password).
+Create each admin's login in Authentication > Users (same email + a password).
 
--- 1) ADMIN CHECK
+-- 1) ADMINS (up to 4). Put YOUR email below as the first admin; add the others from the portal's admin page.
+create table if not exists public.namsa_portal_admins (
+  email text primary key check (email = lower(email)),
+  created_at timestamptz default now()
+);
 create or replace function public.is_namsa_admin()
-returns boolean language sql stable as $$
-  select lower(coalesce(auth.jwt() ->> 'email','')) = lower('YOUR_ADMIN_EMAIL')
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.namsa_portal_admins
+    where email = lower(coalesce(auth.jwt() ->> 'email',''))
+  )
 $$;
+-- Limit: never more than 4 admins, and never remove the last one.
+create or replace function public.namsa_limit_admins() returns trigger language plpgsql as $$
+begin
+  if (select count(*) from public.namsa_portal_admins) >= 4 then
+    raise exception 'Maximum of 4 admins allowed';
+  end if;
+  return new;
+end $$;
+create or replace function public.namsa_keep_one_admin() returns trigger language plpgsql as $$
+begin
+  if (select count(*) from public.namsa_portal_admins) <= 1 then
+    raise exception 'You cannot remove the last admin';
+  end if;
+  return old;
+end $$;
+drop trigger if exists namsa_limit_admins on public.namsa_portal_admins;
+create trigger namsa_limit_admins before insert on public.namsa_portal_admins
+  for each row execute function public.namsa_limit_admins();
+drop trigger if exists namsa_keep_one_admin on public.namsa_portal_admins;
+create trigger namsa_keep_one_admin before delete on public.namsa_portal_admins
+  for each row execute function public.namsa_keep_one_admin();
+insert into public.namsa_portal_admins (email)
+select lower('YOUR_ADMIN_EMAIL')
+where not exists (select 1 from public.namsa_portal_admins where email = lower('YOUR_ADMIN_EMAIL'));
+alter table public.namsa_portal_admins enable row level security;
+drop policy if exists "admin manage admins" on public.namsa_portal_admins;
+create policy "admin manage admins" on public.namsa_portal_admins for all to authenticated
+  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
 
 -- 2) COMMITTEES (requires_dues = visitors must have paid enough dues)
 create table if not exists public.namsa_portal_committees (
@@ -551,6 +586,15 @@ textarea{resize:vertical;min-height:80px}
         <div class="t"><b>Check a student</b><small id="duesFind">Enter an index number to see what they have paid.</small></div>
         <div class="acts"><input type="text" id="duesQ" placeholder="Index number" style="width:170px"><button class="btn alt" id="duesQb">Check</button></div>
       </div>
+
+      <div class="adm-top" style="margin-top:44px">
+        <div><h2>Admins</h2><p style="color:var(--muted)">Up to 4 people can manage this portal. Each person also needs a login created in Supabase (Authentication, Users) using the same email.</p></div>
+      </div>
+      <div class="item" style="display:block">
+        <div id="adminsList"></div>
+        <label for="admEm">Add an admin email</label><input type="email" id="admEm" placeholder="name@example.com">
+        <div class="row"><button class="btn" id="admAdd">Add admin</button></div>
+      </div>
     </div>
   </section>
 </main>
@@ -640,7 +684,8 @@ const CONFIG = {
   SLIDES: "namsa_portal_slides",
   SETTINGS: "namsa_portal_settings",
   DUES: "namsa_portal_dues",
-  LINKS: "namsa_portal_committee_links"
+  LINKS: "namsa_portal_committee_links",
+  ADMINS: "namsa_portal_admins"
 };
 /* ======================================================================================== */
 
@@ -761,7 +806,7 @@ function render(){
 }
 
 function renderAdmin(){
-  if(!session)return;renderPeopleAdmin();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();
+  if(!session)return;renderPeopleAdmin();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();loadAdmins();
   $("#adminList").innerHTML=list.length?list.map(c=>`<div class="item">
     <div class="ico">${esc(c.icon||"🏛️")}</div>
     <div class="t"><b>${esc(c.name)}</b> ${c.coming_soon?"🟡 Coming soon":""}${c.requires_dues?" 🔒 Dues":""}<small>${esc(links[c.id]||"No link yet")}</small></div>
@@ -1147,6 +1192,31 @@ $("#duesQb").onclick=async()=>{
   const k=normIdx($("#duesQ").value);if(!k)return;
   const {data,error}=await sb.from(CONFIG.DUES).select("*").eq("index_number",k).maybeSingle();
   $("#duesFind").textContent=error?"Error: "+error.message:data?(data.student_name||"No name")+" has paid "+cedi(data.amount_paid)+(data.amount_paid>=num(settings.dues_min,50)?" (can open locked committees)":" (not enough yet)"):"Not found on the list.";
+};
+
+/* ---- admins (maximum 4) ---- */
+const ADM_MAX=4;
+async function loadAdmins(){
+  if(!sb||!session)return;
+  const r=await sb.from(CONFIG.ADMINS).select("email").order("created_at");
+  if(r.error){$("#adminsList").innerHTML='<div class="note">Could not read the admin list ('+esc(r.error.message)+'). Run the updated SQL.</div>';return}
+  const me=(session.user.email||"").toLowerCase();
+  $("#adminsList").innerHTML=`<b>${r.data.length} of ${ADM_MAX} admins</b>`+r.data.map(a=>`<div class="item" style="margin-top:10px"><div class="t"><b>${esc(a.email)}</b>${a.email===me?"<small>You</small>":""}</div><div class="acts">${a.email===me?"":`<button class="btn red" data-adel="${esc(a.email)}">Remove</button>`}</div></div>`).join("");
+  $("#admAdd").disabled=r.data.length>=ADM_MAX;
+}
+$("#admAdd").onclick=async()=>{
+  const em=$("#admEm").value.trim().toLowerCase();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))return toast("Enter a valid email address");
+  const {error}=await sb.from(CONFIG.ADMINS).insert({email:em});
+  if(error)return toast(/duplicate/i.test(error.message)?"That email is already an admin":/Maximum/.test(error.message)?"Maximum of 4 admins reached":"Failed: "+error.message);
+  $("#admEm").value="";toast("Admin added");loadAdmins();
+};
+$("#adminsList").onclick=async e=>{
+  const d=e.target.closest("[data-adel]");if(!d)return;
+  if(!confirm("Remove "+d.dataset.adel+" as an admin?"))return;
+  const {error}=await sb.from(CONFIG.ADMINS).delete().eq("email",d.dataset.adel);
+  if(error)return toast("Failed: "+error.message);
+  toast("Admin removed");loadAdmins();
 };
 
 /* ---- misc ---- */
