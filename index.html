@@ -6,253 +6,12 @@
 <title>NAMSA-PU Digital Portal Hub</title>
 <meta name="description" content="Nursing and Midwifery Students Association, PU: leadership and committee platforms.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
 <!--
-=====================  ONE-TIME SUPABASE SETUP  =====================
-Run in your EXISTING Supabase project: SQL Editor > New query. Change YOUR_ADMIN_EMAIL once (first admin).
-Safe to run more than once. The same script is also supplied as namsa-supabase.sql.
-Create each admin's login in Authentication > Users (same email + a password).
-
--- 1) ADMINS (up to 4). Put YOUR email below as the first admin; add the others from the portal's admin page.
-create table if not exists public.namsa_portal_admins (
-  email text primary key check (email = lower(email)),
-  created_at timestamptz default now()
-);
-create or replace function public.is_namsa_admin()
-returns boolean language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.namsa_portal_admins
-    where email = lower(coalesce(auth.jwt() ->> 'email',''))
-  )
-$$;
--- Limit: never more than 4 admins, and never remove the last one.
-create or replace function public.namsa_limit_admins() returns trigger language plpgsql as $$
-begin
-  if (select count(*) from public.namsa_portal_admins) >= 4 then
-    raise exception 'Maximum of 4 admins allowed';
-  end if;
-  return new;
-end $$;
-create or replace function public.namsa_keep_one_admin() returns trigger language plpgsql as $$
-begin
-  if (select count(*) from public.namsa_portal_admins) <= 1 then
-    raise exception 'You cannot remove the last admin';
-  end if;
-  return old;
-end $$;
-drop trigger if exists namsa_limit_admins on public.namsa_portal_admins;
-create trigger namsa_limit_admins before insert on public.namsa_portal_admins
-  for each row execute function public.namsa_limit_admins();
-drop trigger if exists namsa_keep_one_admin on public.namsa_portal_admins;
-create trigger namsa_keep_one_admin before delete on public.namsa_portal_admins
-  for each row execute function public.namsa_keep_one_admin();
-insert into public.namsa_portal_admins (email)
-select lower('YOUR_ADMIN_EMAIL')
-where not exists (select 1 from public.namsa_portal_admins where email = lower('YOUR_ADMIN_EMAIL'));
-alter table public.namsa_portal_admins enable row level security;
-drop policy if exists "admin manage admins" on public.namsa_portal_admins;
-create policy "admin manage admins" on public.namsa_portal_admins for all to authenticated
-  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
-
--- 2) COMMITTEES (requires_dues = visitors must have paid enough dues)
-create table if not exists public.namsa_portal_committees (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  description text default '',
-  icon text default '🏛️',
-  coming_soon boolean default false,
-  requires_dues boolean default false,
-  has_link boolean default false,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-alter table public.namsa_portal_committees add column if not exists requires_dues boolean default false;
-alter table public.namsa_portal_committees add column if not exists has_link boolean default false;
-
--- 2b) COMMITTEE WEBSITE LINKS: PRIVATE. Visitors never see them; a link is only released by
---     namsa_open_committee() after the dues check passes (or straight away if no dues needed).
-create table if not exists public.namsa_portal_committee_links (
-  committee_id uuid primary key references public.namsa_portal_committees(id) on delete cascade,
-  url text not null default ''
-);
-alter table public.namsa_portal_committee_links enable row level security;
-drop policy if exists "admin links" on public.namsa_portal_committee_links;
-create policy "admin links" on public.namsa_portal_committee_links for all to authenticated
-  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
-
--- Move any links saved by an earlier version out of the public table, then remove the public column.
-do $$
-begin
-  if exists (select 1 from information_schema.columns
-             where table_schema = 'public' and table_name = 'namsa_portal_committees' and column_name = 'url') then
-    insert into public.namsa_portal_committee_links (committee_id, url)
-      select id, url from public.namsa_portal_committees where coalesce(url,'') <> ''
-      on conflict (committee_id) do nothing;
-    update public.namsa_portal_committees set has_link = coalesce(url,'') <> '';
-    alter table public.namsa_portal_committees drop column url;
-  end if;
-end $$;
-
--- 3) LEADERSHIP (newest year_label = current administration; older = Past executives)
-create table if not exists public.namsa_portal_people (
-  id uuid primary key default gen_random_uuid(),
-  role text not null,
-  name text not null,
-  position text default '',
-  year_label text default '',
-  photo_url text default '',
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-update public.namsa_portal_people set role = 'executive' where role in ('current','past');
-alter table public.namsa_portal_people drop constraint if exists namsa_portal_people_role_check;
-alter table public.namsa_portal_people
-  add constraint namsa_portal_people_role_check check (role in ('patron','executive','appointee'));
-
--- 4) SETTINGS (logo, Paystack link, full dues, minimum) and 5) FRONT-PAGE PICTURES
-create table if not exists public.namsa_portal_settings (key text primary key, value text default '');
-create table if not exists public.namsa_portal_slides (
-  id uuid primary key default gen_random_uuid(),
-  image_url text not null,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-
--- 6) DUES LIST (private: the public can only check one index number)
-create table if not exists public.namsa_portal_dues (
-  index_number text primary key,
-  student_name text default '',
-  amount_paid numeric default 0,
-  created_at timestamptz default now()
-);
-alter table public.namsa_portal_dues add column if not exists amount_paid numeric default 0;
-
--- Returns {ok, paid}. ok = true when amount paid >= the minimum set in the admin page (default 50).
-drop function if exists public.namsa_check_dues(text);
-create or replace function public.namsa_check_dues(p_index text)
-returns jsonb language sql security definer set search_path = public stable as $$
-  with cfg as (
-    select coalesce((select nullif(value,'')::numeric from public.namsa_portal_settings where key = 'dues_min'), 50) as min_amt
-  ), d as (
-    select amount_paid from public.namsa_portal_dues
-    where index_number = regexp_replace(upper(coalesce(p_index,'')), '[^A-Z0-9]', '', 'g')
-  )
-  select jsonb_build_object(
-    'ok',   coalesce((select amount_paid from d) >= (select min_amt from cfg), false),
-    'paid', coalesce((select amount_paid from d), 0)
-  )
-$$;
-revoke all on function public.namsa_check_dues(text) from public;
-grant execute on function public.namsa_check_dues(text) to anon, authenticated;
-
--- Opens a committee: returns {ok:true,url} only when allowed. Dues committees need paid >= minimum.
-create or replace function public.namsa_open_committee(p_id uuid, p_index text default '')
-returns jsonb language plpgsql security definer set search_path = public stable as $$
-declare
-  c record; l text; paid numeric := 0; minamt numeric;
-  k text := regexp_replace(upper(coalesce(p_index,'')), '[^A-Z0-9]', '', 'g');
-begin
-  select * into c from public.namsa_portal_committees where id = p_id;
-  if not found or c.coming_soon then return jsonb_build_object('ok', false, 'reason', 'unavailable'); end if;
-  select url into l from public.namsa_portal_committee_links where committee_id = p_id;
-  if coalesce(l,'') = '' then return jsonb_build_object('ok', false, 'reason', 'nolink'); end if;
-  if c.requires_dues then
-    select coalesce((select nullif(value,'')::numeric from public.namsa_portal_settings where key = 'dues_min'), 50) into minamt;
-    select coalesce(max(amount_paid), 0) into paid from public.namsa_portal_dues where index_number = k;
-    if k = '' or paid < minamt then
-      return jsonb_build_object('ok', false, 'reason', 'dues', 'paid', paid);
-    end if;
-  end if;
-  return jsonb_build_object('ok', true, 'url', l);
-end $$;
-revoke all on function public.namsa_open_committee(uuid, text) from public;
-grant execute on function public.namsa_open_committee(uuid, text) to anon, authenticated;
-
--- 6b) PAYSTACK PAYMENTS (filled automatically by the paystack-webhook Edge Function)
-create table if not exists public.namsa_portal_payments (
-  reference text primary key,
-  index_number text not null default '',
-  student_name text default '',
-  email text default '',
-  amount numeric not null,
-  currency text default 'GHS',
-  paid_at timestamptz default now(),
-  created_at timestamptz default now()
-);
-alter table public.namsa_portal_payments enable row level security;
-drop policy if exists "admin read payments" on public.namsa_portal_payments;
-create policy "admin read payments" on public.namsa_portal_payments for select to authenticated
-  using (public.is_namsa_admin());
-
--- Records one payment once (duplicate Paystack notifications are ignored) and adds it to the dues list.
-create or replace function public.namsa_record_payment(
-  p_reference text, p_index text, p_name text, p_email text,
-  p_amount numeric, p_currency text, p_paid_at timestamptz
-) returns boolean language plpgsql security definer set search_path = public as $$
-declare
-  k text := regexp_replace(upper(coalesce(p_index,'')), '[^A-Z0-9]', '', 'g');
-  n int;
-begin
-  insert into public.namsa_portal_payments (reference, index_number, student_name, email, amount, currency, paid_at)
-  values (p_reference, k, coalesce(p_name,''), coalesce(p_email,''), p_amount, coalesce(p_currency,'GHS'), coalesce(p_paid_at, now()))
-  on conflict (reference) do nothing;
-  get diagnostics n = row_count;
-  if n = 1 and k <> '' then
-    insert into public.namsa_portal_dues (index_number, student_name, amount_paid)
-    values (k, coalesce(p_name,''), p_amount)
-    on conflict (index_number) do update set
-      amount_paid  = public.namsa_portal_dues.amount_paid + excluded.amount_paid,
-      student_name = case when excluded.student_name <> '' then excluded.student_name
-                          else public.namsa_portal_dues.student_name end;
-  end if;
-  return n = 1;
-end $$;
-revoke all on function public.namsa_record_payment(text,text,text,text,numeric,text,timestamptz) from public, anon, authenticated;
-grant execute on function public.namsa_record_payment(text,text,text,text,numeric,text,timestamptz) to service_role;
-
--- 7) SECURITY (everyone reads, only the admin writes; the dues list is admin-only)
-alter table public.namsa_portal_committees enable row level security;
-alter table public.namsa_portal_people     enable row level security;
-alter table public.namsa_portal_settings   enable row level security;
-alter table public.namsa_portal_slides     enable row level security;
-alter table public.namsa_portal_dues       enable row level security;
-
-drop policy if exists "public read"          on public.namsa_portal_committees;
-drop policy if exists "admin write"          on public.namsa_portal_committees;
-drop policy if exists "public read people"   on public.namsa_portal_people;
-drop policy if exists "admin write people"   on public.namsa_portal_people;
-drop policy if exists "public read settings" on public.namsa_portal_settings;
-drop policy if exists "admin write settings" on public.namsa_portal_settings;
-drop policy if exists "public read slides"   on public.namsa_portal_slides;
-drop policy if exists "admin write slides"   on public.namsa_portal_slides;
-drop policy if exists "admin all dues"       on public.namsa_portal_dues;
-
-create policy "public read"          on public.namsa_portal_committees for select using (true);
-create policy "admin write"          on public.namsa_portal_committees for all to authenticated
-  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
-create policy "public read people"   on public.namsa_portal_people for select using (true);
-create policy "admin write people"   on public.namsa_portal_people for all to authenticated
-  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
-create policy "public read settings" on public.namsa_portal_settings for select using (true);
-create policy "admin write settings" on public.namsa_portal_settings for all to authenticated
-  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
-create policy "public read slides"   on public.namsa_portal_slides for select using (true);
-create policy "admin write slides"   on public.namsa_portal_slides for all to authenticated
-  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
-create policy "admin all dues"       on public.namsa_portal_dues for all to authenticated
-  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
-
--- 8) PHOTO STORAGE (leader photos, NAMSA logo, front-page pictures)
-insert into storage.buckets (id, name, public) values ('namsa-photos','namsa-photos',true)
-on conflict (id) do update set public = true;
-drop policy if exists "photos public read" on storage.objects;
-drop policy if exists "photos admin write" on storage.objects;
-create policy "photos public read" on storage.objects for select using (bucket_id = 'namsa-photos');
-create policy "photos admin write" on storage.objects for all to authenticated
-  using (bucket_id = 'namsa-photos' and public.is_namsa_admin())
-  with check (bucket_id = 'namsa-photos' and public.is_namsa_admin());
-=====================================================================
+  NAMSA-PU DIGITAL PORTAL HUB (single file: HTML + CSS + JavaScript)
+  SETUP: 1) Run namsa-supabase.sql in Supabase (SQL Editor).  2) Fill in the CONFIG block in the script at the bottom.
+         3) Create each admin login in Supabase (Authentication > Users).  4) Upload this file to GitHub Pages or Cloudflare Pages.
 -->
 <style>
 :root{
@@ -478,6 +237,7 @@ textarea{resize:vertical;min-height:80px}
       <a href="#committees">Committees</a>
       <a href="#about">About</a>
       <button id="adminBtn" aria-label="Admin login" title="Admin login" style="font-size:1.6rem;line-height:1;padding:6px 14px">.</button>
+      <button id="navOut" hidden style="color:#9a3324">Sign out</button>
     </div>
   </nav>
 </header>
@@ -563,8 +323,8 @@ textarea{resize:vertical;min-height:80px}
   <div class="wrap copy">© <span id="yr"></span> NAMSA-PU. All rights reserved.</div>
 </footer>
 
-<!-- Admin dashboard -->
-<div id="admin" role="dialog" aria-label="Admin dashboard">
+<!-- Admin panel -->
+<div id="admin" role="dialog" aria-label="Admin panel">
   <div class="adm-head">
     <div class="adm-bar">
       <div class="adm-brand"><span class="logo">🛠️</span><div><b>NAMSA-PU Admin</b><small id="who"></small></div></div>
@@ -573,7 +333,7 @@ textarea{resize:vertical;min-height:80px}
     <div class="adm-tabs" id="admTabs">
       <button data-tab="committees" class="on">Committees</button>
       <button data-tab="leadership">Leadership</button>
-      <button data-tab="pictures">Logo &amp; pictures</button>
+      <button data-tab="pictures">Website</button>
       <button data-tab="dues">Dues &amp; payments</button>
       <button data-tab="admins">Admins</button>
     </div>
@@ -760,7 +520,11 @@ const ICONS=["🏛️","🤝","🩺","📝","🌍","🎤","⚖️","💰","📋"
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const configured=!CONFIG.SUPABASE_URL.startsWith("YOUR_")&&!CONFIG.SUPABASE_ANON_KEY.startsWith("YOUR_");
-const sb=configured?supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY):null;
+/* The admin login lives only for this browser tab (sessionStorage) and ends when the tab is closed. */
+const store=(()=>{try{sessionStorage.setItem("_t","1");sessionStorage.removeItem("_t");return sessionStorage}catch{return null}})();
+const sb=(configured&&typeof supabase!=="undefined")
+  ?supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY,{auth:Object.assign({persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},store?{storage:store}:{})})
+  :null;
 let links={},slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],session=null,editingId=null,pickedIcon="🏛️",pastOpen=false;
 
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2800)}
@@ -768,7 +532,7 @@ const safeUrl=u=>{try{const x=new URL(u);return /^https?:$/.test(x.protocol)?x.h
 
 async function load(){
   $("#notice").innerHTML="";
-  if(!sb){list=DEFAULTS;people=DEMO;$("#notice").innerHTML='<div class="note">Preview mode: add your Supabase URL and anon key in the CONFIG block to load and save committees and leaders permanently.</div>';}
+  if(!sb){list=DEFAULTS;people=DEMO;$("#notice").innerHTML=configured?'<div class="note">The Supabase library could not load. Check your internet connection and reload the page.</div>':'<div class="note">Preview mode: add your Supabase URL and public key in the CONFIG block to load and save committees and leaders permanently.</div>';}
   else{
     const {data,error}=await sb.from(CONFIG.TABLE).select("*").order("sort_order").order("created_at");
     if(error){list=DEFAULTS;$("#notice").innerHTML='<div class="note">Could not load committees from Supabase ('+esc(error.message)+'). Showing the default list. Check that the table exists and has a public read policy.</div>';}
@@ -880,25 +644,59 @@ function adminEntry(e){
 }
 $("#adminBtn").onclick=adminEntry;$("#fAdmin").onclick=adminEntry;
 
+/* ---- secure admin session ----
+   * Only emails in the admin list can open the admin panel (checked in the database).
+   * 5 wrong passwords lock the login box for 5 minutes. Idle for 15 minutes signs the admin out.
+   * The login ends when the browser tab is closed. */
+const mem={};
+const sget=k=>{try{return sessionStorage.getItem(k)}catch{return mem[k]??null}};
+const sset=(k,v)=>{try{sessionStorage.setItem(k,String(v))}catch{mem[k]=String(v)}};
+let idleT;const IDLE_MS=15*60*1000;
+function bumpIdle(){clearTimeout(idleT);if(session)idleT=setTimeout(()=>doSignOut("Signed out after 15 minutes of inactivity"),IDLE_MS)}
+["click","keydown","touchstart"].forEach(ev=>addEventListener(ev,bumpIdle,{passive:true}));
+
+function paintAuth(on){
+  $("#navOut").hidden=!on;
+  if(on){$("#who").textContent=session.user.email;loadLinks()}
+  else{closeAdmin();clearTimeout(idleT)}
+}
+async function applySession(s){
+  if(!s||!sb){session=null;paintAuth(false);return false}
+  let ok=false;
+  try{const r=await sb.rpc("is_namsa_admin");ok=!r.error&&r.data===true}catch{}
+  if(!ok){session=null;paintAuth(false);try{await sb.auth.signOut()}catch{}return false}
+  session=s;paintAuth(true);bumpIdle();return true;
+}
+async function doSignOut(msg){
+  closeAdmin();session=null;paintAuth(false);
+  try{await sb.auth.signOut()}catch{}
+  toast(msg||"Signed out");
+}
 async function login(){
-  if(!sb){$("#loginErr").textContent="Add your Supabase details in the CONFIG block first.";return}
-  $("#loginErr").textContent="Signing in…";
-  const {error}=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});
-  if(error){$("#loginErr").textContent="Login failed: "+error.message;return}
-  $("#pw").value="";close();toast("Welcome back");openAdmin();
+  const err=m=>$("#loginErr").textContent=m;
+  if(!sb)return err("The portal is not connected to Supabase.");
+  const wait=+(sget("namsa_lock")||0)-Date.now();
+  if(wait>0)return err("Too many attempts. Try again in "+Math.ceil(wait/60000)+" minute(s).");
+  const email=$("#em").value.trim(),pw=$("#pw").value;
+  if(!email||!pw)return err("Enter your email and password.");
+  err("Signing in…");
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pw});
+  if(error){
+    const n=+(sget("namsa_fails")||0)+1;sset("namsa_fails",n);
+    if(n>=5){sset("namsa_lock",Date.now()+5*60000);sset("namsa_fails",0);return err("Too many attempts. Locked for 5 minutes.")}
+    return err("Incorrect email or password.");
+  }
+  sset("namsa_fails",0);$("#pw").value="";
+  if(await applySession(data.session)){close();toast("Signed in");openAdmin()}
+  else err("This account is not an admin.");
 }
 $("#loginGo").onclick=login;
 $("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
-$("#outBtn").onclick=async()=>{closeAdmin();await sb.auth.signOut();toast("Signed out")};
-
-function setSession(s){
-  session=s;
-  $("#adminBtn").textContent=s?"Dashboard":".";
-  if(s){$("#who").textContent=s.user.email;loadLinks();}else closeAdmin();
-}
+$("#outBtn").onclick=()=>doSignOut();
+$("#navOut").onclick=()=>doSignOut();
 if(sb){
-  sb.auth.getSession().then(({data})=>setSession(data.session));
-  sb.auth.onAuthStateChange((_e,s)=>setSession(s));
+  sb.auth.getSession().then(({data})=>applySession(data.session));
+  sb.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT")setTimeout(()=>applySession(null),0)});
 }
 
 /* ---- committees: add / edit / delete ---- */
@@ -1246,7 +1044,7 @@ $("#duesQb").onclick=async()=>{
   $("#duesFind").textContent=error?"Error: "+error.message:data?(data.student_name||"No name")+" has paid "+cedi(data.amount_paid)+(data.amount_paid>=num(settings.dues_min,50)?" (can open locked committees)":" (not enough yet)"):"Not found on the list.";
 };
 
-/* ---- admin dashboard shell ---- */
+/* ---- admin panel shell ---- */
 let curTab="committees";
 function showTab(t){
   curTab=t;
