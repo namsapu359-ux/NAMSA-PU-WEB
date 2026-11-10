@@ -163,26 +163,19 @@ section{padding:84px 0}
 .search input{flex:1;border:0;outline:0;font-size:1rem;background:none;min-width:0;padding:11px 0;color:var(--ink);font-family:inherit}
 .count{background:var(--grad);color:#fff;font-weight:700;font-size:.85rem;padding:9px 16px;border-radius:999px;white-space:nowrap}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:580px;margin:0 auto}
-.card{--c:#10b981;position:relative;display:flex;flex-direction:column;aspect-ratio:1/1;background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px 12px 12px;box-shadow:var(--shadow);overflow:hidden;transition:transform .28s,box-shadow .28s;animation:rise .6s both}
-.card:nth-child(4n+2){--c:#0ea5a4}.card:nth-child(4n+3){--c:#0ea5e9}.card:nth-child(4n+4){--c:#f5b942}
-.card::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:var(--c)}
-.card::after{content:"";position:absolute;right:-40px;top:-40px;width:110px;height:110px;border-radius:50%;background:var(--c);opacity:.09}
-.card:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
+.card{position:relative;display:flex;flex-direction:column;aspect-ratio:1/1;background:#fff;border:1px solid #d3dee3;border-top:3px solid var(--teal);border-radius:8px;padding:12px 11px 11px;box-shadow:0 1px 2px rgba(10,31,44,.07);overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.card:hover{border-color:var(--emerald);border-top-color:var(--emerald);box-shadow:0 4px 12px rgba(10,31,44,.13)}
 .card.tap{cursor:pointer}
 @keyframes rise{from{opacity:0;transform:translateY(20px)}}
-.grid>.card:nth-child(2),.ppl>.person:nth-child(2){animation-delay:.05s}.grid>.card:nth-child(3),.ppl>.person:nth-child(3){animation-delay:.1s}
-.grid>.card:nth-child(4),.ppl>.person:nth-child(4){animation-delay:.15s}.grid>.card:nth-child(5),.ppl>.person:nth-child(5){animation-delay:.2s}
-.grid>.card:nth-child(6),.ppl>.person:nth-child(6){animation-delay:.25s}.grid>.card:nth-child(7),.ppl>.person:nth-child(7){animation-delay:.3s}
-.grid>.card:nth-child(8),.ppl>.person:nth-child(8){animation-delay:.35s}.grid>.card:nth-child(n+9){animation-delay:.4s}
-.ico{width:36px;height:36px;border-radius:12px;background:var(--mint);display:grid;place-items:center;font-size:1.25rem;flex:none;position:relative;z-index:1}
-.card .ico{background:color-mix(in srgb,var(--c) 18%,#fff);transition:transform .3s}
-.card:hover .ico{transform:rotate(-8deg) scale(1.1)}
+.ico{width:36px;height:36px;border-radius:10px;background:var(--mint);display:grid;place-items:center;font-size:1.25rem;flex:none;position:relative;z-index:1}
+.card .ico{background:#eef4f6;border:1px solid #dbe6ea;border-radius:8px}
 .card h3{font-size:.9rem;margin:8px 0 3px;color:var(--deep);position:relative;z-index:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .card p{color:var(--muted);font-size:.76rem;line-height:1.35;flex:1;min-height:0;margin:0 0 8px;position:relative;z-index:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card .btn{align-self:stretch;padding:7px 8px;font-size:.74rem;line-height:1.25;box-shadow:none;position:relative;z-index:1;text-align:center}
+.card .btn{align-self:stretch;border-radius:6px;background:var(--emerald);padding:7px 8px;font-size:.74rem;line-height:1.25;box-shadow:none;position:relative;z-index:1;text-align:center}
 .btn .short{display:none}
+.card.tap:hover .btn{background:#047857}
 .badge{background:#fff3d6;color:#8a5a00;font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
-.card.soon{opacity:.92}.card.soon::before{background:linear-gradient(90deg,#f5b942,#f08a4b)}
+.card.soon{background:#f6f9fa;border-top-color:#c9a13a}
 .lock{background:var(--mint);color:var(--emerald);font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .ctop{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;position:relative;z-index:1}
 .cb{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
@@ -193,6 +186,7 @@ section{padding:84px 0}
   .card .btn{font-size:.62rem;padding:5px 4px}.btn .long{display:none}.btn .short{display:inline}
   .badge,.lock{font-size:.5rem;padding:2px 5px}
 }
+.idnote{background:#eef6fb;border:1px solid #cfe3f0;color:#1f4a66;padding:10px 12px;border-radius:10px;font-size:.84rem;margin-top:12px;line-height:1.45}
 .bad{background:#fff3f0;border:1px solid #f1b8ac;color:#8a2c1a;padding:13px 15px;border-radius:14px;margin-top:14px;font-size:.92rem;line-height:1.5}
 .bad[hidden]{display:none}
 
@@ -278,7 +272,7 @@ textarea{resize:vertical;min-height:84px}
 .modal h3{margin-bottom:14px;font-size:1.3rem;color:var(--deep)}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--deep);color:#fff;padding:13px 24px;border-radius:999px;z-index:200;font-weight:600;max-width:90%;display:none;box-shadow:var(--shadow-lg)}
 .toast.show{display:block}
-#viewer{position:fixed;inset:0;z-index:150;background:#fff;display:none;flex-direction:column}
+#viewer{position:fixed;inset:71px 0 0 0;z-index:40;background:#fff;display:none;flex-direction:column}
 #viewer.show{display:flex}
 .vbar{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--hero);color:#fff;flex-wrap:wrap}
 .vbar b{flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -536,7 +530,8 @@ textarea{resize:vertical;min-height:84px}
   <div class="modal" role="dialog" aria-label="NAMSA dues check">
     <h3>🔒 NAMSA dues check</h3>
     <p id="gateT" style="color:var(--muted)"></p>
-    <label for="gi">Index number</label><input type="text" id="gi" autocomplete="off" placeholder="Enter your index number">
+    <label for="gi">Student ID (index number)</label><input type="text" id="gi" autocomplete="off" placeholder="Enter your student ID">
+    <div class="idnote"><b>Important:</b> use your own student ID. It must match your name, because it is passed to the committee and used when you submit your issue.</div>
     <div class="err" id="gateErr"></div>
     <div class="bad" id="gateBad" hidden></div>
     <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="gateGo">Check and continue</button></div>
@@ -545,7 +540,7 @@ textarea{resize:vertical;min-height:84px}
 
 <!-- In-page committee viewer -->
 <div id="viewer" role="dialog" aria-label="Committee platform">
-  <div class="vbar"><button id="vBack">← Back to portal</button><b id="vTitle"></b></div>
+  <div class="vbar"><button id="vBack">← Back to committees</button><b id="vTitle"></b></div>
   <div id="vLoad">Loading platform…</div>
   <iframe id="vFrame" title="Committee platform" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
 </div>
@@ -888,8 +883,9 @@ $("#pSave").onclick=async()=>{
 };
 
 /* ---- in-page committee viewer ---- */
-function openViewer(c,u){
+function openViewer(c,u,sid){
   u=safeUrl(u);if(!u)return;
+  if(sid){try{const x=new URL(u);x.searchParams.set("student_id",sid);u=x.href}catch{}}
   $("#vTitle").textContent=c.name;$("#vLoad").style.display="block";
   $("#vFrame").onload=()=>$("#vLoad").style.display="none";
   $("#vFrame").src=u;$("#viewer").classList.add("show");document.body.style.overflow="hidden";
@@ -901,7 +897,10 @@ function closeViewer(){
 const tapCard=e=>{const b=e.target.closest("[data-open]");if(!b)return;const c=list.find(c=>String(c.id)===b.dataset.open);if(!c)return;if(c.requires_dues)gate(c);else launch(c)};
 $("#grid").onclick=tapCard;
 $("#grid").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tapCard(e)}};
-$("#vBack").onclick=()=>location.hash==="#viewer"?history.back():closeViewer();
+$("#vBack").onclick=()=>{
+  if(location.hash==="#viewer")history.back();else closeViewer();
+  setTimeout(()=>{const el=$("#committees");if(el)el.scrollIntoView()},80);
+};
 window.addEventListener("hashchange",()=>{if(location.hash!=="#viewer")closeViewer()});
 
 /* ---- branding, front-page pictures, vitals ---- */
@@ -997,8 +996,7 @@ const normIdx=v=>String(v??"").toUpperCase().replace(/[^A-Z0-9]/g,"");
 const num=(v,d)=>{const n=parseFloat(v);return isFinite(n)?n:d};
 const cedi=n=>"GH₵"+(+Number(n).toFixed(2));
 let gateC=null;
-const savedIdx=()=>{try{return sessionStorage.getItem("namsa_idx")||""}catch{return""}};
-const saveIdx=v=>{try{sessionStorage.setItem("namsa_idx",v)}catch{}};
+try{sessionStorage.removeItem("namsa_idx")}catch{} /* the student ID is never remembered: it is asked for every committee */
 async function askOpen(c,idx){
   const {data,error}=await sb.rpc("namsa_open_committee",{p_id:c.id,p_index:idx||""});
   if(error)throw error;
@@ -1013,10 +1011,8 @@ async function launch(c){
 }
 async function gate(c){
   gateC=c;
-  const s=savedIdx();
-  if(sb&&s){try{const r=await askOpen(c,s);if(r.ok){openViewer(c,r.url);return}}catch{}}
-  $("#gateT").textContent="“"+c.name+"” is for students who have paid their NAMSA dues. Enter your index number to continue.";
-  $("#gi").value=s;$("#gateErr").textContent="";$("#gateBad").hidden=true;
+  $("#gateT").textContent="“"+c.name+"” is for students who have paid their NAMSA dues. Enter your student ID to continue.";
+  $("#gi").value="";$("#gateErr").textContent="";$("#gateBad").hidden=true;
   open("#gateO");setTimeout(()=>$("#gi").focus(),50);
 }
 function showPayMessage(paid){
@@ -1024,20 +1020,20 @@ function showPayMessage(paid){
   const link=safeUrl(settings.paystack_url||"");
   const head=paid>0
     ?`<b>You have paid ${cedi(paid)} so far, which is below the ${cedi(min)} needed.</b><br>Pay at least ${cedi(min-paid)} more to open this committee, or ${cedi(Math.max(full-paid,0))} to complete your full dues.`
-    :`<b>We could not find a payment for this index number.</b><br>Please pay your NAMSA dues before you can report an issue to this committee. Pay ${pct}% (${cedi(min)}) or pay in full (${cedi(full)}).`;
-  $("#gateBad").innerHTML=head+`<br><br>Use your index number when paying so your payment can be matched. Your access opens once NAMSA updates the paid list.`
+    :`<b>We could not find a payment for this student ID.</b><br>Please pay your NAMSA dues before you can report an issue to this committee. Pay ${pct}% (${cedi(min)}) or pay in full (${cedi(full)}).`;
+  $("#gateBad").innerHTML=head+`<br><br>Use your student ID when paying so your payment can be matched. Your access opens once NAMSA updates the paid list.`
     +(link?`<br><a class="btn" style="margin-top:10px" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Pay on Paystack ↗</a>`:`<br>Please contact a NAMSA executive to pay.`);
   $("#gateBad").hidden=false;
 }
 async function gateGo(){
   const idx=normIdx($("#gi").value);
   $("#gateBad").hidden=true;
-  if(!idx){$("#gateErr").textContent="Enter your index number.";return}
+  if(!idx){$("#gateErr").textContent="Enter your student ID.";return}
   if(!sb){$("#gateErr").textContent="The dues check needs the portal to be connected to Supabase.";return}
   $("#gateErr").textContent="Checking…";
   try{
     const r=await askOpen(gateC,idx);
-    if(r.ok){saveIdx(idx);$("#gateErr").textContent="";close();openViewer(gateC,r.url)}
+    if(r.ok){$("#gateErr").textContent="";$("#gi").value="";close();openViewer(gateC,r.url,idx)}
     else if(r.reason==="dues"){$("#gateErr").textContent="";showPayMessage(num(r.paid,0))}
     else $("#gateErr").textContent="This committee is not available yet.";
   }catch(x){$("#gateErr").textContent="Could not check right now. Check your connection and try again."}
