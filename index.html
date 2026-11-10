@@ -25,14 +25,39 @@ create table if not exists public.namsa_portal_committees (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   description text default '',
-  url text default '',
   icon text default '🏛️',
   coming_soon boolean default false,
   requires_dues boolean default false,
+  has_link boolean default false,
   sort_order int default 0,
   created_at timestamptz default now()
 );
 alter table public.namsa_portal_committees add column if not exists requires_dues boolean default false;
+alter table public.namsa_portal_committees add column if not exists has_link boolean default false;
+
+-- 2b) COMMITTEE WEBSITE LINKS: PRIVATE. Visitors never see them; a link is only released by
+--     namsa_open_committee() after the dues check passes (or straight away if no dues needed).
+create table if not exists public.namsa_portal_committee_links (
+  committee_id uuid primary key references public.namsa_portal_committees(id) on delete cascade,
+  url text not null default ''
+);
+alter table public.namsa_portal_committee_links enable row level security;
+drop policy if exists "admin links" on public.namsa_portal_committee_links;
+create policy "admin links" on public.namsa_portal_committee_links for all to authenticated
+  using (public.is_namsa_admin()) with check (public.is_namsa_admin());
+
+-- Move any links saved by an earlier version out of the public table, then remove the public column.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'namsa_portal_committees' and column_name = 'url') then
+    insert into public.namsa_portal_committee_links (committee_id, url)
+      select id, url from public.namsa_portal_committees where coalesce(url,'') <> ''
+      on conflict (committee_id) do nothing;
+    update public.namsa_portal_committees set has_link = coalesce(url,'') <> '';
+    alter table public.namsa_portal_committees drop column url;
+  end if;
+end $$;
 
 -- 3) LEADERSHIP (newest year_label = current administration; older = Past executives)
 create table if not exists public.namsa_portal_people (
@@ -85,6 +110,29 @@ returns jsonb language sql security definer set search_path = public stable as $
 $$;
 revoke all on function public.namsa_check_dues(text) from public;
 grant execute on function public.namsa_check_dues(text) to anon, authenticated;
+
+-- Opens a committee: returns {ok:true,url} only when allowed. Dues committees need paid >= minimum.
+create or replace function public.namsa_open_committee(p_id uuid, p_index text default '')
+returns jsonb language plpgsql security definer set search_path = public stable as $$
+declare
+  c record; l text; paid numeric := 0; minamt numeric;
+  k text := regexp_replace(upper(coalesce(p_index,'')), '[^A-Z0-9]', '', 'g');
+begin
+  select * into c from public.namsa_portal_committees where id = p_id;
+  if not found or c.coming_soon then return jsonb_build_object('ok', false, 'reason', 'unavailable'); end if;
+  select url into l from public.namsa_portal_committee_links where committee_id = p_id;
+  if coalesce(l,'') = '' then return jsonb_build_object('ok', false, 'reason', 'nolink'); end if;
+  if c.requires_dues then
+    select coalesce((select nullif(value,'')::numeric from public.namsa_portal_settings where key = 'dues_min'), 50) into minamt;
+    select coalesce(max(amount_paid), 0) into paid from public.namsa_portal_dues where index_number = k;
+    if k = '' or paid < minamt then
+      return jsonb_build_object('ok', false, 'reason', 'dues', 'paid', paid);
+    end if;
+  end if;
+  return jsonb_build_object('ok', true, 'url', l);
+end $$;
+revoke all on function public.namsa_open_committee(uuid, text) from public;
+grant execute on function public.namsa_open_committee(uuid, text) to anon, authenticated;
 
 -- 6b) PAYSTACK PAYMENTS (filled automatically by the paystack-webhook Edge Function)
 create table if not exists public.namsa_portal_payments (
@@ -268,6 +316,7 @@ main,footer{position:relative;z-index:1}
 .btn{transition:background .2s}
 label.btn{display:inline-flex;margin:0}
 .sthumb{width:96px;height:58px;object-fit:cover;border-radius:10px;flex:none}
+.card.tap{cursor:pointer}
 /* dues gate */
 .lock{align-self:flex-start;background:var(--mint);color:var(--g2);font:700 .78rem "Segoe UI",system-ui,sans-serif;padding:3px 10px;border-radius:20px;margin-bottom:8px}
 .bad{background:#fff3f0;border:1px solid #f1b8ac;color:#8a2c1a;padding:12px 14px;border-radius:12px;margin-top:12px;font:.92rem/1.5 "Segoe UI",system-ui,sans-serif}
@@ -574,8 +623,8 @@ textarea{resize:vertical;min-height:80px}
 
 <!-- In-page committee viewer -->
 <div id="viewer" role="dialog" aria-label="Committee platform">
-  <div class="vbar"><button id="vBack">← Back to portal</button><b id="vTitle"></b><a id="vNew" target="_blank" rel="noopener noreferrer">Open in new tab ↗</a></div>
-  <div id="vLoad">Loading platform… If it stays blank, use “Open in new tab”.</div>
+  <div class="vbar"><button id="vBack">← Back to portal</button><b id="vTitle"></b></div>
+  <div id="vLoad">Loading platform…</div>
   <iframe id="vFrame" title="Committee platform" allow="fullscreen" referrerpolicy="no-referrer-when-downgrade"></iframe>
 </div>
 <div class="toast" id="toast"></div>
@@ -583,14 +632,15 @@ textarea{resize:vertical;min-height:80px}
 <script>
 /* ============== CONFIGURATION: paste your EXISTING Supabase project values ============== */
 const CONFIG = {
-  SUPABASE_URL: "YOUR_SUPABASE_URL",          // e.g. https://abcdxyz.supabase.co
-  SUPABASE_ANON_KEY: "YOUR_SUPABASE_ANON_KEY", // public anon key (never the service_role key)
+  SUPABASE_URL: "https://flairlkjrrojaigunqiq.supabase.co",          // e.g. https://abcdxyz.supabase.co
+  SUPABASE_ANON_KEY: "sb_publishable_EjnafkDDRlO4JYD3G1Q8nQ_QtfXRMez", // public anon key (never the service_role key)
   TABLE: "namsa_portal_committees",
   PEOPLE: "namsa_portal_people",
   BUCKET: "namsa-photos",
   SLIDES: "namsa_portal_slides",
   SETTINGS: "namsa_portal_settings",
-  DUES: "namsa_portal_dues"
+  DUES: "namsa_portal_dues",
+  LINKS: "namsa_portal_committee_links"
 };
 /* ======================================================================================== */
 
@@ -609,7 +659,7 @@ const DEFAULTS = [
   ["Entertainment Committee","Social nights, talent shows and fun activities.","🎉"],
   ["Planning Committee","Long-term plans, calendars and strategy.","🗓️"],
   ["Sports and Health Committee","Sports, fitness and healthy living.","⚽"]
-].map((c,i)=>({id:"d"+i,name:c[0],description:c[1],icon:c[2],url:"",coming_soon:false,requires_dues:DUES_DEFAULT.has(c[0]),sort_order:i+1}));
+].map((c,i)=>({id:"d"+i,name:c[0],description:c[1],icon:c[2],has_link:false,coming_soon:false,requires_dues:DUES_DEFAULT.has(c[0]),sort_order:i+1}));
 /* sample leadership shown only in preview mode (before Supabase is connected) */
 const DEMO=[{id:"x0",role:"patron",name:"Patron's Name",position:"Patron"}]
   .concat(["President","Vice President","Secretary","Financial Controller","Women's Commissioner","PRO","Organizer"].map((p,i)=>({id:"x"+(i+1),role:"executive",name:"Name Surname",position:p,year_label:"2025/2026"})))
@@ -623,7 +673,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const configured=!CONFIG.SUPABASE_URL.startsWith("YOUR_")&&!CONFIG.SUPABASE_ANON_KEY.startsWith("YOUR_");
 const sb=configured?supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY):null;
-let slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],session=null,editingId=null,pickedIcon="🏛️",pastOpen=false;
+let links={},slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],session=null,editingId=null,pickedIcon="🏛️",pastOpen=false;
 
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2800)}
 const safeUrl=u=>{try{const x=new URL(u);return /^https?:$/.test(x.protocol)?x.href:""}catch{return""}};
@@ -644,6 +694,7 @@ async function load(){
   }
   render();renderPeople();renderAdmin();renderBrand();renderSlides();
   if(!window.bubblesBuilt){window.bubblesBuilt=true;buildBubbles()}
+  loadLinks();
 }
 
 /* ---- leadership ---- */
@@ -685,17 +736,25 @@ function renderPeopleAdmin(){
   </div>`).join(""):'<div class="empty">No people added yet. Select “Add person”.</div>';
 }
 
+/* ---- private committee links (admin only) ---- */
+async function loadLinks(){
+  if(!sb||!session)return;
+  const r=await sb.from(CONFIG.LINKS).select("*");
+  links=r.error?{}:Object.fromEntries(r.data.map(x=>[x.committee_id,x.url]));
+  renderAdmin();
+}
+
 /* ---- committees ---- */
 function render(){
   const q=$("#q").value.trim().toLowerCase();
   const rows=list.filter(c=>(c.name+" "+c.description).toLowerCase().includes(q));
   $("#count").textContent=rows.length+(rows.length===1?" committee":" committees");
   $("#grid").innerHTML=rows.length?rows.map(c=>{
-    const u=safeUrl(c.url);
+    const live=!c.coming_soon&&c.has_link;
     const btn=c.coming_soon?'<span class="btn dis">Coming soon</span>'
-      :u?`<button class="btn" data-open="${esc(c.id)}">Visit Platform</button>`
+      :live?'<span class="btn">Visit Platform</span>'
       :'<span class="btn dis">Link not set</span>';
-    return `<article class="card ${c.coming_soon?"soon":""}">
+    return `<article class="card ${c.coming_soon?"soon":""} ${live?"tap":""}" ${live?`data-open="${esc(c.id)}" tabindex="0" role="link" aria-label="Open ${esc(c.name)}"`:""}>
       ${c.coming_soon?'<span class="badge">Coming soon</span>':""}
       <div class="ico">${esc(c.icon||"🏛️")}</div><h3>${esc(c.name)}</h3>${c.requires_dues?'<span class="lock">🔒 NAMSA dues required</span>':""}<p>${esc(c.description)}</p>${btn}</article>`;
   }).join(""):'<div class="empty" style="grid-column:1/-1">No committees match your search. Try a different word.</div>';
@@ -705,7 +764,7 @@ function renderAdmin(){
   if(!session)return;renderPeopleAdmin();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();
   $("#adminList").innerHTML=list.length?list.map(c=>`<div class="item">
     <div class="ico">${esc(c.icon||"🏛️")}</div>
-    <div class="t"><b>${esc(c.name)}</b> ${c.coming_soon?"🟡 Coming soon":""}${c.requires_dues?" 🔒 Dues":""}<small>${esc(c.url||"No link yet")}</small></div>
+    <div class="t"><b>${esc(c.name)}</b> ${c.coming_soon?"🟡 Coming soon":""}${c.requires_dues?" 🔒 Dues":""}<small>${esc(links[c.id]||"No link yet")}</small></div>
     <div class="acts"><button class="btn alt" data-edit="${esc(c.id)}">Edit</button><button class="btn red" data-del="${esc(c.id)}">Delete</button></div>
   </div>`).join(""):'<div class="empty">No committees yet. Select “Add committee” or “Load default 12”.</div>';
 }
@@ -738,7 +797,7 @@ function setSession(s){
   session=s;
   $("#admin").classList.toggle("show",!!s);
   $("#adminBtn").textContent=s?"Dashboard":".";
-  if(s){$("#who").textContent="Signed in as "+s.user.email;renderAdmin();}
+  if(s){$("#who").textContent="Signed in as "+s.user.email;loadLinks();}
 }
 if(sb){
   sb.auth.getSession().then(({data})=>setSession(data.session));
@@ -755,7 +814,7 @@ $("#fi").oninput=e=>{if(e.target.value.trim()){pickedIcon=e.target.value.trim();
 function openForm(c){
   editingId=c?c.id:null;
   $("#formT").textContent=c?"Edit committee":"Add committee";
-  $("#fn").value=c?.name||"";$("#fd").value=c?.description||"";$("#fu").value=c?.url||"";
+  $("#fn").value=c?.name||"";$("#fd").value=c?.description||"";$("#fu").value=(c?links[c.id]:"")||"";
   $("#fs").checked=!!c?.coming_soon;$("#fr").checked=!!c?.requires_dues;pickedIcon=c?.icon||"🏛️";$("#fi").value="";
   $("#formErr").textContent="";drawIcons();open("#formO");
 }
@@ -775,12 +834,17 @@ $("#saveBtn").onclick=async()=>{
   const name=$("#fn").value.trim(),url=$("#fu").value.trim();
   if(!name){$("#formErr").textContent="Enter a committee name.";return}
   if(url&&!safeUrl(url)){$("#formErr").textContent="Enter a full link starting with https://";return}
-  const row={name,description:$("#fd").value.trim(),url,icon:pickedIcon,coming_soon:$("#fs").checked,requires_dues:$("#fr").checked};
-  let error;
-  if(editingId)({error}=await sb.from(CONFIG.TABLE).update(row).eq("id",editingId));
+  const row={name,description:$("#fd").value.trim(),has_link:!!url,icon:pickedIcon,coming_soon:$("#fs").checked,requires_dues:$("#fr").checked};
+  let error,id=editingId;
+  if(id)({error}=await sb.from(CONFIG.TABLE).update(row).eq("id",id));
   else{
     row.sort_order=list.reduce((m,c)=>Math.max(m,c.sort_order||0),0)+1;
-    ({error}=await sb.from(CONFIG.TABLE).insert(row));
+    const r=await sb.from(CONFIG.TABLE).insert(row).select("id").single();
+    error=r.error;id=r.data?.id;
+  }
+  if(!error){
+    if(url){({error}=await sb.from(CONFIG.LINKS).upsert({committee_id:id,url}))}
+    else if(editingId){({error}=await sb.from(CONFIG.LINKS).delete().eq("committee_id",id))}
   }
   if(error){$("#formErr").textContent="Save failed: "+error.message;return}
   close();toast("Committee saved");load();
@@ -843,9 +907,9 @@ $("#pSave").onclick=async()=>{
 };
 
 /* ---- in-page committee viewer ---- */
-function openViewer(c){
-  const u=safeUrl(c.url);if(!u)return;
-  $("#vTitle").textContent=c.name;$("#vNew").href=u;$("#vLoad").style.display="block";
+function openViewer(c,u){
+  u=safeUrl(u);if(!u)return;
+  $("#vTitle").textContent=c.name;$("#vLoad").style.display="block";
   $("#vFrame").onload=()=>$("#vLoad").style.display="none";
   $("#vFrame").src=u;$("#viewer").classList.add("show");document.body.style.overflow="hidden";
   location.hash="viewer";
@@ -853,7 +917,9 @@ function openViewer(c){
 function closeViewer(){
   $("#viewer").classList.remove("show");$("#vFrame").src="about:blank";document.body.style.overflow="";
 }
-$("#grid").onclick=e=>{const b=e.target.closest("[data-open]");if(!b)return;const c=list.find(c=>String(c.id)===b.dataset.open);if(c.requires_dues)gate(c);else openViewer(c)};
+const tapCard=e=>{const b=e.target.closest("[data-open]");if(!b)return;const c=list.find(c=>String(c.id)===b.dataset.open);if(!c)return;if(c.requires_dues)gate(c);else launch(c)};
+$("#grid").onclick=tapCard;
+$("#grid").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tapCard(e)}};
 $("#vBack").onclick=()=>location.hash==="#viewer"?history.back():closeViewer();
 window.addEventListener("hashchange",()=>{if(location.hash!=="#viewer")closeViewer()});
 
@@ -963,15 +1029,22 @@ const cedi=n=>"GH₵"+(+Number(n).toFixed(2));
 let gateC=null;
 const savedIdx=()=>{try{return sessionStorage.getItem("namsa_idx")||""}catch{return""}};
 const saveIdx=v=>{try{sessionStorage.setItem("namsa_idx",v)}catch{}};
-async function checkDues(idx){
-  const {data,error}=await sb.rpc("namsa_check_dues",{p_index:idx});
+async function askOpen(c,idx){
+  const {data,error}=await sb.rpc("namsa_open_committee",{p_id:c.id,p_index:idx||""});
   if(error)throw error;
-  return data||{ok:false,paid:0};
+  return data||{ok:false};
+}
+async function launch(c){
+  if(!sb){toast("Connect Supabase to open committees");return}
+  try{
+    const r=await askOpen(c,"");
+    if(r.ok){openViewer(c,r.url)}else toast("This committee is not available yet");
+  }catch{toast("Could not open right now. Please try again.")}
 }
 async function gate(c){
   gateC=c;
   const s=savedIdx();
-  if(sb&&s){try{if((await checkDues(s)).ok){openViewer(c);return}}catch{}}
+  if(sb&&s){try{const r=await askOpen(c,s);if(r.ok){openViewer(c,r.url);return}}catch{}}
   $("#gateT").textContent="“"+c.name+"” is for students who have paid their NAMSA dues. Enter your index number to continue.";
   $("#gi").value=s;$("#gateErr").textContent="";$("#gateBad").hidden=true;
   open("#gateO");setTimeout(()=>$("#gi").focus(),50);
@@ -993,9 +1066,10 @@ async function gateGo(){
   if(!sb){$("#gateErr").textContent="The dues check needs the portal to be connected to Supabase.";return}
   $("#gateErr").textContent="Checking…";
   try{
-    const r=await checkDues(idx);
-    if(r.ok){saveIdx(idx);$("#gateErr").textContent="";close();openViewer(gateC)}
-    else{$("#gateErr").textContent="";showPayMessage(num(r.paid,0))}
+    const r=await askOpen(gateC,idx);
+    if(r.ok){saveIdx(idx);$("#gateErr").textContent="";close();openViewer(gateC,r.url)}
+    else if(r.reason==="dues"){$("#gateErr").textContent="";showPayMessage(num(r.paid,0))}
+    else $("#gateErr").textContent="This committee is not available yet.";
   }catch(x){$("#gateErr").textContent="Could not check right now. Check your connection and try again."}
 }
 $("#gateGo").onclick=gateGo;
