@@ -281,6 +281,14 @@ textarea{resize:vertical;min-height:84px}
 #vFrame{flex:1;width:100%;border:0;background:#fff}
 #vLoad{position:absolute;top:60px;left:0;right:0;text-align:center;padding:24px;color:var(--muted);pointer-events:none}
 
+/* 10b. SECURITY TAB */
+.statrow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:10px 18px;min-width:120px}
+.stat b{display:block;font-size:1.5rem;color:var(--deep)}.stat span{font-size:.78rem;color:var(--muted)}
+.chip.pend{background:#fff3d6;color:#8a5a00}.chip.off{background:#e5ebee;color:#4c5b66}
+.pdet{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 18px;margin-top:12px;font-size:.82rem;color:var(--muted);line-height:1.35}
+.pdet b{color:var(--ink);font-weight:600;word-break:break-all}
+
 /* 12. MOTION PREFERENCES */
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -299,6 +307,7 @@ textarea{resize:vertical;min-height:84px}
       <a href="#leadership">Leadership</a>
       <a href="#committees">Committees</a>
       <a href="#about">About</a>
+      <button id="navStu">Student sign in</button>
       <button id="adminBtn" aria-label="Admin login" title="Admin login" style="font-size:1.6rem;line-height:1;padding:6px 14px">.</button>
       <button id="navOut" hidden style="color:#b42318">Sign out</button>
     </div>
@@ -394,6 +403,7 @@ textarea{resize:vertical;min-height:84px}
       <button data-tab="leadership">Leadership</button>
       <button data-tab="pictures">Website</button>
       <button data-tab="dues">Dues &amp; payments</button>
+      <button data-tab="security">Security</button>
       <button data-tab="admins">Admins</button>
     </div>
   </div>
@@ -405,7 +415,7 @@ textarea{resize:vertical;min-height:84px}
           <div><h2>Committees</h2><p style="color:var(--muted)" id="cSummary"></p></div>
           <div class="row"><button class="btn" id="addBtn">＋ Add committee</button><button class="btn alt" id="seedBtn">Load default 12</button></div>
         </div>
-        <p class="hint" style="margin-bottom:16px">Paste each committee's website link in its box and select Save link. Visitors tap the committee and it opens. They never see the link.</p>
+        <p class="hint" style="margin-bottom:16px">Paste each committee's website link in its box and select Save link. Students sign in, then tap a committee. They never see the link.</p>
         <div id="adminList"></div>
       </div>
     </div>
@@ -469,6 +479,30 @@ textarea{resize:vertical;min-height:84px}
       </div>
     </div>
 
+    <div class="atab" id="tab-security">
+      <div class="panel">
+        <div class="adm-top"><div><h2>CENTRAL SECURITY &amp; CONNECTED PLATFORMS</h2><p style="color:var(--muted)">Every committee website signs students in through this portal. A committee shows <b>Securely Connected</b> only after the server has verified it. Step by step: 1) save the committee's website link in the Committees tab, 2) Configure integration, 3) put the credentials into that committee's Supabase project, 4) Test connection.</p></div></div>
+        <div class="statrow" id="secSummary"></div>
+        <div id="platList"></div>
+      </div>
+      <div class="panel">
+        <div class="adm-top"><div><h2>Verified student roster</h2><p style="color:var(--muted)">Students sign in with a one-time code sent to the email listed here. The server maps that verified email to one student ID, so nobody can type or switch to another ID. Upload an Excel or CSV file with the columns “Index Number”, “Name” and “Email”.</p></div></div>
+        <div class="item">
+          <div class="t"><b id="rosterCount">Checking roster…</b><small id="rosterMsg">New students can use Student sign in straight after you save them.</small></div>
+          <div class="acts"><label class="btn">Upload roster<input type="file" id="rosterF" accept=".xlsx,.xls,.csv" hidden></label></div>
+        </div>
+        <div class="item" style="display:block">
+          <b>Add one student</b>
+          <div class="lrow" style="margin-top:8px">
+            <input type="text" id="rId" placeholder="Student ID (e.g. PU/2023/001)" autocomplete="off" aria-label="Student ID">
+            <input type="text" id="rName" placeholder="Full name" autocomplete="off" aria-label="Full name">
+            <input type="email" id="rEmail" placeholder="Registered email" autocomplete="off" aria-label="Registered email">
+            <button class="btn" id="rAdd">Add student</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="atab" id="tab-admins">
       <div class="panel">
         <div class="adm-top"><div><h2>Admins</h2><p style="color:var(--muted)">Up to 4 people can manage this portal. Each person also needs a login created in Supabase (Authentication, Users) using the same email.</p></div></div>
@@ -525,16 +559,60 @@ textarea{resize:vertical;min-height:84px}
   </div>
 </div>
 
-<!-- Dues gate -->
-<div class="overlay" id="gateO">
-  <div class="modal" role="dialog" aria-label="NAMSA dues check">
-    <h3>🔒 NAMSA dues check</h3>
-    <p id="gateT" style="color:var(--muted)"></p>
-    <label for="gi">Student ID (index number)</label><input type="text" id="gi" autocomplete="off" placeholder="Enter your student ID">
-    <div class="idnote"><b>Important:</b> use your own student ID. It must match your name, because it is passed to the committee and used when you submit your issue.</div>
-    <div class="err" id="gateErr"></div>
-    <div class="bad" id="gateBad" hidden></div>
-    <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="gateGo">Check and continue</button></div>
+<!-- Student sign in -->
+<div class="overlay" id="stuO">
+  <div class="modal" role="dialog" aria-label="Student sign in">
+    <h3>🎓 Student sign in</h3>
+    <p class="hint" id="stuHint" style="margin-bottom:6px">Enter the email address registered with NAMSA. We will send you a one-time code.</p>
+    <div id="stuStep1">
+      <label for="stuEm">Registered email</label><input type="email" id="stuEm" autocomplete="email">
+      <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="stuSend">Send code</button></div>
+    </div>
+    <div id="stuStep2" hidden>
+      <label for="stuCode">Code from your email</label><input type="text" id="stuCode" inputmode="numeric" maxlength="10" autocomplete="one-time-code">
+      <div class="row"><button class="btn alt" id="stuBack">Back</button><button class="btn" id="stuVerify">Verify and sign in</button></div>
+    </div>
+    <div class="err" id="stuErr"></div>
+  </div>
+</div>
+
+<!-- Open a committee: confirm the verified identity -->
+<div class="overlay" id="cfmO">
+  <div class="modal" role="dialog" aria-label="Open committee">
+    <h3 id="cfmT">Open committee</h3>
+    <p style="color:var(--muted)">You are signed in as</p>
+    <p style="font-weight:800;font-size:1.1rem" id="cfmWho"></p>
+    <div class="idnote"><b>Important:</b> this is your verified student identity. It is sent securely to the committee and used for everything you submit. It cannot be changed here. If it is not you, sign out and sign in with your own email.</div>
+    <div class="bad" id="cfmBad" hidden></div>
+    <div class="err" id="cfmErr"></div>
+    <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="cfmGo">Continue</button></div>
+  </div>
+</div>
+
+<!-- Configure a committee integration -->
+<div class="overlay" id="platO">
+  <div class="modal" role="dialog" aria-label="Configure integration">
+    <h3 id="pcT">Configure integration</h3>
+    <label for="pcWeb">Committee website (from the Committees tab)</label><input type="text" id="pcWeb" readonly>
+    <label for="pcRepo">GitHub repository link</label><input type="url" id="pcRepo" placeholder="https://github.com/…">
+    <label for="pcSup">Committee Supabase project link</label><input type="url" id="pcSup" placeholder="https://xxxx.supabase.co">
+    <label for="pcCb">Sign-in callback page (must be on the committee website)</label><input type="url" id="pcCb">
+    <label for="pcEx">Committee exchange function link</label><input type="url" id="pcEx" placeholder="https://xxxx.supabase.co/functions/v1/namsa-sso-exchange">
+    <label class="chk"><input type="checkbox" id="pcRot"> Issue a new secret (the old secret stops working)</label>
+    <div class="err" id="pcErr"></div>
+    <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="pcSave">Save</button></div>
+  </div>
+</div>
+
+<!-- Credentials (shown once) -->
+<div class="overlay" id="credO">
+  <div class="modal" role="dialog" aria-label="Committee credentials">
+    <h3>🔑 Committee credentials</h3>
+    <div class="bad">The secret is shown <b>only once</b>. Copy it now into this committee's Supabase project (Edge Functions, Secrets). It is never stored in readable form and must never go into HTML or GitHub.</div>
+    <label for="crMain">MAIN_SSO_URL</label><input type="text" id="crMain" readonly>
+    <label for="crId">CLIENT_ID</label><input type="text" id="crId" readonly>
+    <label for="crSec">CLIENT_SECRET</label><input type="text" id="crSec" readonly>
+    <div class="row"><button class="btn alt" id="crCopy">Copy all three</button><button class="btn" data-close>I have saved them</button></div>
   </div>
 </div>
 
@@ -558,8 +636,11 @@ const CONFIG = {
   SETTINGS: "namsa_portal_settings",
   DUES: "namsa_portal_dues",
   LINKS: "namsa_portal_committee_links",
-  ADMINS: "namsa_portal_admins"
+  ADMINS: "namsa_portal_admins",
+  PLATFORMS: "namsa_platforms",
+  STUDENTS: "namsa_students"
 };
+CONFIG.SSO_URL=CONFIG.SUPABASE_URL+"/functions/v1/namsa-sso";   // the central sign-on service (Edge Function)
 /* ======================================================================================== */
 
 const POSITIONS=["President","Vice President","Secretary","Financial Controller","Women's Commissioner","PRO","Organizer","Head of Appointees","Appointee"];
@@ -595,7 +676,7 @@ const store=(()=>{try{sessionStorage.setItem("_t","1");sessionStorage.removeItem
 const sb=(configured&&typeof supabase!=="undefined")
   ?supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY,{auth:Object.assign({persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},store?{storage:store}:{})})
   :null;
-let links={},slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],session=null,editingId=null,pickedIcon="🏛️",pastOpen=false;
+let links={},slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],session=null,viewerOrigin="",stu=null,platforms={},pendingC=null,cfmC=null,editingId=null,pickedIcon="🏛️",pastOpen=false;
 
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2800)}
 const safeUrl=u=>{try{const x=new URL(u);return /^https?:$/.test(x.protocol)?x.href:""}catch{return""}};
@@ -673,10 +754,10 @@ function render(){
   const sc=$("#stC");if(sc)sc.textContent=list.length;
   $("#count").textContent=rows.length+(rows.length===1?" committee":" committees");
   $("#grid").innerHTML=rows.length?rows.map(c=>{
-    const live=!c.coming_soon&&c.has_link;
+    const live=!c.coming_soon&&c.sso_ready;
     const btn=c.coming_soon?'<span class="btn dis">Coming soon</span>'
       :live?'<span class="btn"><span class="long">Visit to report issue</span><span class="short">Visit</span></span>'
-      :'<span class="btn dis">Link not set</span>';
+      :c.has_link?'<span class="btn dis">Pending integration</span>':'<span class="btn dis">Link not set</span>';
     return `<article class="card ${c.coming_soon?"soon":""} ${live?"tap":""}" ${live?`data-open="${esc(c.id)}" tabindex="0" role="link" aria-label="Visit ${esc(c.name)} to report an issue"`:""}>
       <div class="ctop"><div class="ico">${esc(c.icon||"🏛️")}</div><div class="cb">${c.coming_soon?'<span class="badge">Coming soon</span>':""}${c.requires_dues?'<span class="lock">🔒 Dues</span>':""}</div></div>
       <h3>${esc(c.name)}</h3><p>${esc(c.description)}</p>${btn}</article>`;
@@ -684,7 +765,7 @@ function render(){
 }
 
 function renderAdmin(){
-  if(!session)return;renderPeopleAdmin();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();loadAdmins();
+  if(!session)return;renderPeopleAdmin();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();loadAdmins();renderSecurity();
   const fallback=list===DEFAULTS;
   const withLink=list.filter(c=>links[c.id]||c.has_link).length;
   $("#cSummary").textContent=fallback?"":list.length+" committees, "+withLink+" with a link saved";
@@ -715,37 +796,54 @@ function adminEntry(e){
 }
 $("#adminBtn").onclick=adminEntry;$("#fAdmin").onclick=adminEntry;
 
-/* ---- secure admin session ----
-   * Only emails in the admin list can open the admin panel (checked in the database).
-   * 5 wrong passwords lock the login box for 5 minutes. Idle for 15 minutes signs the admin out.
-   * The login ends when the browser tab is closed. */
+/* ---- sessions: admin and student ----
+   Admin:   only emails in the admin list (checked in the database). 5 wrong passwords lock the box for 5 minutes.
+   Student: signs in with a one-time code sent to the email registered on the NAMSA roster. The student ID is
+            decided by the server from that verified email. Students never type an ID.
+   Both sessions end after 15 idle minutes or when the browser tab is closed. */
 const mem={};
 const sget=k=>{try{return sessionStorage.getItem(k)}catch{return mem[k]??null}};
 const sset=(k,v)=>{try{sessionStorage.setItem(k,String(v))}catch{mem[k]=String(v)}};
 let idleT;const IDLE_MS=15*60*1000;
-function bumpIdle(){clearTimeout(idleT);if(session)idleT=setTimeout(()=>doSignOut("Signed out after 15 minutes of inactivity"),IDLE_MS)}
+function bumpIdle(){clearTimeout(idleT);if(session||stu)idleT=setTimeout(()=>doSignOut("Signed out after 15 minutes of inactivity"),IDLE_MS)}
 ["click","keydown","touchstart"].forEach(ev=>addEventListener(ev,bumpIdle,{passive:true}));
 
-function paintAuth(on){
-  $("#navOut").hidden=!on;
-  if(on){$("#who").textContent=session.user.email;loadLinks()}
-  else{closeAdmin();clearTimeout(idleT)}
+function paintAuth(){
+  const any=!!(session||stu);
+  $("#navOut").hidden=!any;
+  $("#navStu").hidden=!!session;
+  $("#navStu").textContent=stu?"🎓 "+(stu.name||stu.label).split(" ")[0]:"Student sign in";
+  if(session){$("#who").textContent=session.user.email;loadLinks();loadPlatforms()}
+  else closeAdmin();
+  if(!any)clearTimeout(idleT);
 }
-/* Returns "" when the person is an admin, otherwise a message explaining exactly what is wrong. */
-async function applySession(s){
-  if(!s||!sb){session=null;paintAuth(false);return "No active login."}
-  let msg="";
-  try{
-    const r=await sb.rpc("is_namsa_admin");
-    if(r.error)msg="Could not check admin access ("+r.error.message+"). Run namsa-supabase.sql in Supabase, then try again.";
-    else if(r.data!==true)msg="You signed in as "+s.user.email+", but this email is not on the admin list. In Supabase open Table Editor, namsa_portal_admins, and add this email.";
-  }catch(x){msg="Could not check admin access. Check your internet connection."}
-  if(msg){session=null;paintAuth(false);try{await sb.auth.signOut()}catch{}return msg}
-  session=s;paintAuth(true);bumpIdle();return "";
+/* Decides who the signed-in browser is. Returns "admin", "student" or "none" (and signs out unknown accounts). */
+async function handleAuth(s){
+  if(!s||!sb){session=null;stu=null;paintAuth();return "none"}
+  let admin=false,student=null;
+  try{const r=await sb.rpc("is_namsa_admin");admin=!r.error&&r.data===true}catch{}
+  if(!admin){
+    try{const r=await sb.rpc("namsa_me"),d=r.data;
+      if(!r.error&&d&&d.student_id)student={id:d.student_id,label:d.label||d.student_id,name:d.name||""}}catch{}
+  }
+  if(admin){session=s;stu=null}
+  else if(student){session=null;stu=student}
+  else{session=null;stu=null;try{await sb.auth.signOut()}catch{}}
+  paintAuth();bumpIdle();
+  return admin?"admin":student?"student":"none";
+}
+/* Signing out of the portal also signs the student out of the open committee (the committee site listens for this). */
+async function endViewer(){
+  if($("#viewer").classList.contains("show")){
+    if(viewerOrigin){try{$("#vFrame").contentWindow.postMessage({type:"namsa-logout"},viewerOrigin)}catch{}}
+    await new Promise(r=>setTimeout(r,350));
+  }
+  closeViewer();
 }
 async function doSignOut(msg){
-  closeAdmin();session=null;paintAuth(false);
-  try{await sb.auth.signOut()}catch{}
+  await endViewer();
+  closeAdmin();session=null;stu=null;pendingC=null;paintAuth();
+  if(sb){try{await sb.auth.signOut()}catch{}}
   toast(msg||"Signed out");
 }
 async function login(){
@@ -767,17 +865,21 @@ async function login(){
     return err(m+(/confirm/i.test(m)?" In Supabase open Authentication, Users, and confirm this user.":""));
   }
   sset("namsa_fails",0);$("#pw").value="";
-  const bad=await applySession(data.session);
-  if(!bad){close();toast("Signed in");openAdmin()}
-  else err(bad);
+  await handleAuth(data.session);
+  if(session){close();toast("Signed in");openAdmin()}
+  else{
+    err("This account is not an admin. Students use the Student sign in button.");
+    try{await sb.auth.signOut()}catch{}
+    stu=null;paintAuth();
+  }
 }
 $("#loginGo").onclick=login;
 $("#pw").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
 $("#outBtn").onclick=()=>doSignOut();
 $("#navOut").onclick=()=>doSignOut();
 if(sb){
-  sb.auth.getSession().then(({data})=>applySession(data.session));
-  sb.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT")setTimeout(()=>applySession(null),0)});
+  sb.auth.getSession().then(({data})=>handleAuth(data.session));
+  sb.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT")setTimeout(()=>handleAuth(null),0)});
 }
 
 /* ---- committees: add / edit / delete ---- */
@@ -883,9 +985,9 @@ $("#pSave").onclick=async()=>{
 };
 
 /* ---- in-page committee viewer ---- */
-function openViewer(c,u,sid){
+function openViewer(c,u){
   u=safeUrl(u);if(!u)return;
-  if(sid){try{const x=new URL(u);x.searchParams.set("student_id",sid);u=x.href}catch{}}
+  try{viewerOrigin=new URL(u).origin}catch{viewerOrigin=""}
   $("#vTitle").textContent=c.name;$("#vLoad").style.display="block";
   $("#vFrame").onload=()=>$("#vLoad").style.display="none";
   $("#vFrame").src=u;$("#viewer").classList.add("show");document.body.style.overflow="hidden";
@@ -894,7 +996,7 @@ function openViewer(c,u,sid){
 function closeViewer(){
   $("#viewer").classList.remove("show");$("#vFrame").src="about:blank";document.body.style.overflow="";
 }
-const tapCard=e=>{const b=e.target.closest("[data-open]");if(!b)return;const c=list.find(c=>String(c.id)===b.dataset.open);if(!c)return;if(c.requires_dues)gate(c);else launch(c)};
+const tapCard=e=>{const b=e.target.closest("[data-open]");if(!b)return;const c=list.find(c=>String(c.id)===b.dataset.open);if(!c)return;openCommittee(c)};
 $("#grid").onclick=tapCard;
 $("#grid").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tapCard(e)}};
 $("#vBack").onclick=()=>{
@@ -991,55 +1093,96 @@ $("#slideList").onclick=async e=>{
   toast("Picture deleted");load();
 };
 
-/* ---- dues gate (visitors) ---- */
+/* ---- students: sign in once, open any connected committee ---- */
 const normIdx=v=>String(v??"").toUpperCase().replace(/[^A-Z0-9]/g,"");
 const num=(v,d)=>{const n=parseFloat(v);return isFinite(n)?n:d};
 const cedi=n=>"GH₵"+(+Number(n).toFixed(2));
-let gateC=null;
-try{sessionStorage.removeItem("namsa_idx")}catch{} /* the student ID is never remembered: it is asked for every committee */
-async function askOpen(c,idx){
-  const {data,error}=await sb.rpc("namsa_open_committee",{p_id:c.id,p_index:idx||""});
-  if(error)throw error;
-  return data||{ok:false};
-}
-async function launch(c){
-  if(!sb){toast("Connect Supabase to open committees");return}
+try{sessionStorage.removeItem("namsa_idx")}catch{}   /* a typed student ID is never remembered or trusted */
+
+/* calls the central security service (Edge Function) with the signed-in user's token */
+async function sso(path,body){
+  const {data}=await sb.auth.getSession();
+  const tok=data.session?.access_token||"";
   try{
-    const r=await askOpen(c,"");
-    if(r.ok){openViewer(c,r.url)}else toast("This committee is not available yet");
-  }catch{toast("Could not open right now. Please try again.")}
+    const res=await fetch(CONFIG.SSO_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok,apikey:CONFIG.SUPABASE_ANON_KEY},body:JSON.stringify(body||{})});
+    const j=await res.json().catch(()=>({}));
+    return {...j,status:res.status,ok:res.ok&&j.ok!==false};
+  }catch{return{ok:false,reason:"network",error:"Could not reach the security service. Check your connection."}}
 }
-async function gate(c){
-  gateC=c;
-  $("#gateT").textContent="“"+c.name+"” is for students who have paid their NAMSA dues. Enter your student ID to continue.";
-  $("#gi").value="";$("#gateErr").textContent="";$("#gateBad").hidden=true;
-  open("#gateO");setTimeout(()=>$("#gi").focus(),50);
+
+let stuEmail="";
+const stuErr=m=>{$("#stuErr").textContent=m||""};
+const stuShow=n=>{$("#stuStep1").hidden=n!==1;$("#stuStep2").hidden=n!==2};
+function openStudentModal(c){
+  pendingC=c||null;stuErr("");$("#stuCode").value="";stuShow(1);
+  $("#stuHint").textContent="Enter the email address registered with NAMSA. We will send you a one-time code.";
+  open("#stuO");setTimeout(()=>$("#stuEm").focus(),50);
 }
-function showPayMessage(paid){
-  const min=num(settings.dues_min,50),full=num(settings.dues_full,100),pct=Math.round(min/full*100);
-  const link=safeUrl(settings.paystack_url||"");
+$("#navStu").onclick=()=>{if(!stu)openStudentModal()};
+$("#stuSend").onclick=async()=>{
+  const em=$("#stuEm").value.trim().toLowerCase();
+  if(!sb)return stuErr("The portal is not connected to Supabase.");
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))return stuErr("Enter the email address registered with NAMSA.");
+  const wait=+(sget("namsa_otp")||0)-Date.now();
+  if(wait>0)return stuErr("Please wait "+Math.ceil(wait/1000)+" seconds before asking for another code.");
+  stuErr("Sending code…");
+  const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:false}});
+  sset("namsa_otp",Date.now()+30000);
+  if(error)return stuErr("We could not send a code. Check that this is the email registered with NAMSA, or contact a NAMSA executive.");
+  stuEmail=em;stuErr("");stuShow(2);
+  $("#stuHint").textContent="We sent a code to "+em+". Enter it below. It expires soon.";
+  setTimeout(()=>$("#stuCode").focus(),50);
+};
+$("#stuBack").onclick=()=>{stuErr("");stuShow(1)};
+$("#stuVerify").onclick=async()=>{
+  const token=$("#stuCode").value.replace(/\s/g,"");
+  if(!/^\d{6,10}$/.test(token))return stuErr("Enter the code from your email.");
+  stuErr("Checking…");
+  const {data,error}=await sb.auth.verifyOtp({email:stuEmail,token,type:"email"});
+  if(error)return stuErr("That code is wrong or has expired.");
+  const who=await handleAuth(data.session);
+  if(who==="student"){
+    close();toast("Signed in as "+stu.label);
+    const c=pendingC;pendingC=null;if(c)openCommittee(c);
+  }else if(who==="admin"){close()}
+  else stuErr("This email is not on the NAMSA student roster.");
+};
+$("#stuEm").addEventListener("keydown",e=>{if(e.key==="Enter")$("#stuSend").click()});
+$("#stuCode").addEventListener("keydown",e=>{if(e.key==="Enter")$("#stuVerify").click()});
+
+/* tapping a committee */
+function openCommittee(c){
+  if(!sb){toast("Connect Supabase to open committees");return}
+  if(!c.sso_ready){toast("This platform is being secured. It will open once its integration is complete.");return}
+  if(session){toast("Sign out of the admin session, then use Student sign in.");return}
+  if(!stu){openStudentModal(c);return}
+  cfmC=c;
+  $("#cfmT").textContent=c.name;
+  $("#cfmWho").textContent=(stu.name?stu.name+" · ":"")+stu.label;
+  $("#cfmErr").textContent="";$("#cfmBad").hidden=true;
+  open("#cfmO");
+}
+function showPayMessage(paid,min,full){
+  const pct=Math.round(min/full*100),link=safeUrl(settings.paystack_url||"");
   const head=paid>0
     ?`<b>You have paid ${cedi(paid)} so far, which is below the ${cedi(min)} needed.</b><br>Pay at least ${cedi(min-paid)} more to open this committee, or ${cedi(Math.max(full-paid,0))} to complete your full dues.`
-    :`<b>We could not find a payment for this student ID.</b><br>Please pay your NAMSA dues before you can report an issue to this committee. Pay ${pct}% (${cedi(min)}) or pay in full (${cedi(full)}).`;
-  $("#gateBad").innerHTML=head+`<br><br>Use your student ID when paying so your payment can be matched. Your access opens once NAMSA updates the paid list.`
+    :`<b>We could not find a payment for your student ID.</b><br>Please pay your NAMSA dues before you can report an issue to this committee. Pay ${pct}% (${cedi(min)}) or pay in full (${cedi(full)}).`;
+  $("#cfmBad").innerHTML=head+`<br><br>Use your student ID when paying so your payment can be matched. Your access opens once NAMSA updates the paid list.`
     +(link?`<br><a class="btn" style="margin-top:10px" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Pay on Paystack ↗</a>`:`<br>Please contact a NAMSA executive to pay.`);
-  $("#gateBad").hidden=false;
+  $("#cfmBad").hidden=false;
 }
-async function gateGo(){
-  const idx=normIdx($("#gi").value);
-  $("#gateBad").hidden=true;
-  if(!idx){$("#gateErr").textContent="Enter your student ID.";return}
-  if(!sb){$("#gateErr").textContent="The dues check needs the portal to be connected to Supabase.";return}
-  $("#gateErr").textContent="Checking…";
-  try{
-    const r=await askOpen(gateC,idx);
-    if(r.ok){$("#gateErr").textContent="";$("#gi").value="";close();openViewer(gateC,r.url,idx)}
-    else if(r.reason==="dues"){$("#gateErr").textContent="";showPayMessage(num(r.paid,0))}
-    else $("#gateErr").textContent="This committee is not available yet.";
-  }catch(x){$("#gateErr").textContent="Could not check right now. Check your connection and try again."}
-}
-$("#gateGo").onclick=gateGo;
-$("#gi").addEventListener("keydown",e=>{if(e.key==="Enter")gateGo()});
+$("#cfmGo").onclick=async()=>{
+  const c=cfmC;if(!c)return;
+  $("#cfmErr").textContent="Verifying…";$("#cfmBad").hidden=true;
+  const r=await sso("/authorize",{committee_id:c.id});
+  $("#cfmErr").textContent="";
+  if(r.ok&&r.redirect){close();openViewer(c,r.redirect);return}
+  if(r.reason==="dues")return showPayMessage(num(r.paid,0),num(r.min,50),num(r.full,100));
+  if(r.reason==="signin"||r.status===401){close();await doSignOut("Please sign in again");openStudentModal(c);return}
+  $("#cfmErr").textContent=r.reason==="not_registered"?"Your email is not on the NAMSA student roster."
+    :r.reason==="unavailable"?"This platform is not securely connected right now."
+    :(r.error||"Could not open this committee. Please try again.");
+};
 
 /* ---- payment settings + dues list (admin) ---- */
 function renderPayAdmin(){
@@ -1200,6 +1343,146 @@ $("#adminsList").onclick=async e=>{
   const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}}),{threshold:.12});
   document.querySelectorAll(".sec-h,.search,.tile,.fgrid").forEach(el=>{el.classList.add("rv");io.observe(el)});
 })();
+
+/* ---- CENTRAL SECURITY & CONNECTED PLATFORMS (admin) ---- */
+async function loadPlatforms(){
+  if(!sb||!session)return;
+  const r=await sb.from(CONFIG.PLATFORMS).select("*");
+  platforms=r.error?{}:Object.fromEntries(r.data.map(x=>[x.committee_id,x]));
+  renderSecurity();refreshRoster();
+}
+function platState(c){
+  const p=platforms[c.id];
+  if(!p||!p.client_id)return{k:"pend",t:"Pending Integration"};
+  if(!p.enabled)return{k:"off",t:"Access Disabled"};
+  if(p.status==="connected")return{k:"ok",t:"Securely Connected"};
+  if(p.status==="failed")return{k:"no",t:"Verification Failed"};
+  return{k:"pend",t:"Pending Integration"};
+}
+const when=t=>t?new Date(t).toLocaleString():"Never";
+function renderSecurity(){
+  if(!session)return;
+  const real=list===DEFAULTS?[]:list;
+  const st=real.map(platState),n=k=>st.filter(s=>s.k===k).length;
+  $("#secSummary").innerHTML=[["Committees",real.length],["Securely connected",n("ok")],["Pending integration",n("pend")],["Verification failed",n("no")],["Access disabled",n("off")]]
+    .map(([l,v])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
+  $("#platList").innerHTML=real.length?real.map(c=>{
+    const p=platforms[c.id]||{},s=platState(c),site=links[c.id]||"";
+    return `<div class="crow"><div class="chead">
+      <div class="ico">${esc(c.icon||"🏛️")}</div>
+      <div class="t"><b>${esc(c.name)}</b><div class="chips"><span class="chip ${s.k}">${s.t}</span></div></div>
+      <div class="acts"><button class="btn alt" data-pcfg="${esc(c.id)}">Configure integration</button><button class="btn alt" data-ptest="${esc(c.id)}" ${p.client_id?"":"disabled"}>Test connection</button>${p.client_id?`<button class="btn ${p.enabled?"red":""}" data-ptoggle="${esc(c.id)}">${p.enabled?"Disable access":"Enable access"}</button>`:""}</div>
+    </div>
+    <div class="pdet">
+      <div>Website<br><b>${esc(site||"No link saved")}</b></div>
+      <div>GitHub repository<br><b>${esc(p.repo_url||"Not added")}</b></div>
+      <div>Supabase integration<br><b>${esc(p.supabase_url||"Not added")}</b></div>
+      <div>SSO registration<br><b>${p.client_id?"Registered ("+esc(p.client_id)+")":"Not registered"}</b></div>
+      <div>Last successful verification<br><b>${esc(when(p.last_verified_at))}</b></div>
+      ${p.status==="failed"&&p.last_error?`<div>Problem<br><b>${esc(p.last_error)}</b></div>`:""}
+    </div></div>`}).join(""):'<div class="empty">No committees yet. Add them in the Committees tab.</div>';
+}
+let pcId=null,pcAuto="";
+function openPlatCfg(id){
+  const c=list.find(x=>String(x.id)===String(id));if(!c)return;
+  const site=links[id]||"";
+  if(!site)return toast("Save the committee website link first (Committees tab).");
+  pcId=id;const p=platforms[id]||{};
+  $("#pcT").textContent="Configure: "+c.name;
+  $("#pcWeb").value=site;$("#pcRepo").value=p.repo_url||"";$("#pcSup").value=p.supabase_url||"";
+  let cb="";try{cb=new URL("auth/callback.html",site.endsWith("/")?site:site+"/").href}catch{}
+  $("#pcCb").value=p.callback_url||cb;$("#pcEx").value=p.exchange_url||"";pcAuto=p.exchange_url||"";
+  $("#pcRot").checked=!p.client_id;$("#pcErr").textContent="";
+  open("#platO");
+}
+$("#pcSup").addEventListener("input",()=>{
+  const v=$("#pcSup").value.trim().replace(/\/$/,"");
+  if(/^https:\/\/[^/]+$/.test(v)&&(!$("#pcEx").value||$("#pcEx").value===pcAuto)){pcAuto=v+"/functions/v1/namsa-sso-exchange";$("#pcEx").value=pcAuto}
+});
+$("#pcSave").onclick=async()=>{
+  const err=m=>$("#pcErr").textContent=m;
+  if(!$("#pcEx").value.trim())return err("Enter the committee's exchange function link.");
+  err("Saving…");
+  const r=await sso("/admin/register",{committee_id:pcId,repo_url:$("#pcRepo").value.trim(),supabase_url:$("#pcSup").value.trim(),callback_url:$("#pcCb").value.trim(),exchange_url:$("#pcEx").value.trim(),rotate:$("#pcRot").checked});
+  if(!r.ok)return err(r.error||"Could not save.");
+  close();await loadPlatforms();
+  if(r.client_secret){
+    $("#crMain").value=r.main_sso_url||"";$("#crId").value=r.client_id||"";$("#crSec").value=r.client_secret;open("#credO");
+  }else toast("Saved. Run Test connection to verify it.");
+};
+$("#crCopy").onclick=async()=>{
+  const t="MAIN_SSO_URL="+$("#crMain").value+"\nCLIENT_ID="+$("#crId").value+"\nCLIENT_SECRET="+$("#crSec").value;
+  try{await navigator.clipboard.writeText(t);toast("Copied")}catch{$("#crSec").select();toast("Select and copy the values manually")}
+};
+$("#platList").addEventListener("click",async e=>{
+  const cfg=e.target.closest("[data-pcfg]"),tst=e.target.closest("[data-ptest]"),tog=e.target.closest("[data-ptoggle]");
+  if(cfg)return openPlatCfg(cfg.dataset.pcfg);
+  if(tst){
+    toast("Testing the connection…");
+    const r=await sso("/admin/test",{committee_id:tst.dataset.ptest});
+    await loadPlatforms();
+    toast(r.ok?"Securely connected: verified by the server":"Verification failed: "+(r.error||"unknown problem"));
+  }
+  if(tog){
+    const p=platforms[tog.dataset.ptoggle];if(!p)return;
+    const r=await sso("/admin/set-enabled",{committee_id:tog.dataset.ptoggle,enabled:!p.enabled});
+    if(!r.ok)return toast(r.error||"Could not update");
+    toast(p.enabled?"Access disabled":"Access enabled");await loadPlatforms();load();
+  }
+});
+
+/* verified student roster */
+async function refreshRoster(){
+  if(!sb||!session)return;
+  const a=await sb.from(CONFIG.STUDENTS).select("student_id",{count:"exact",head:true});
+  $("#rosterCount").textContent=a.error?"Could not read the roster ("+a.error.message+"). Run the security SQL.":a.count+" students on the verified roster";
+}
+async function provision(rows){
+  let saved=0,fresh=0;const problems=[];
+  for(let i=0;i<rows.length;i+=50){
+    toast("Saving "+Math.min(i+50,rows.length)+" of "+rows.length+"…");
+    const r=await sso("/admin/provision",{rows:rows.slice(i,i+50)});
+    if(!r.ok){problems.push(r.error||"A batch failed");break}
+    saved+=r.saved||0;fresh+=r.new_accounts||0;(r.problems||[]).forEach(x=>problems.push(x));
+  }
+  $("#rosterMsg").textContent=saved+" saved, "+fresh+" new sign-in accounts."+(problems.length?" Problems: "+problems.slice(0,4).join("; ")+(problems.length>4?" …":""):"");
+  toast(problems.length?"Saved with some problems":"Roster saved");refreshRoster();
+}
+$("#rosterF").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{
+    if(typeof XLSX==="undefined")throw new Error("The Excel reader did not load. Check your internet connection and reload.");
+    const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+    const head=(rows[0]||[]).map(h=>String(h).toLowerCase());
+    const ci=findCol(head,[/index/,/student.?id|matric|reg.?no/]),ei=findCol(head,[/e-?mail/]),ni=findCol(head,[/name/],ci);
+    if(ci<0||ei<0)throw new Error("The file needs columns headed “Index Number” and “Email”.");
+    const data=rows.slice(1).map(r=>({student_id:String(r[ci]).trim(),name:ni>=0?String(r[ni]).trim():"",email:String(r[ei]).trim()})).filter(r=>r.student_id&&r.email);
+    if(!data.length)throw new Error("No students found in the file.");
+    if(!confirm("Save "+data.length+" students to the verified roster?"))throw new Error("Cancelled.");
+    await provision(data);
+  }catch(x){toast(x.message==="Cancelled."?"Upload cancelled":"Failed: "+x.message)}
+  e.target.value="";
+};
+$("#rAdd").onclick=async()=>{
+  const row={student_id:$("#rId").value.trim(),name:$("#rName").value.trim(),email:$("#rEmail").value.trim()};
+  if(!row.student_id||!row.email)return toast("Enter the student ID and the registered email");
+  await provision([row]);
+  $("#rId").value="";$("#rName").value="";$("#rEmail").value="";
+};
+
+/* ---- identity messages between the portal and the open committee ----
+   The committee asks "who is signed in here?" and signs the student out if the answer differs from
+   the identity of its own session. Only the committee page we opened (and its origin) is answered. */
+addEventListener("message",e=>{
+  const fr=$("#vFrame");
+  if(!fr||!e.data||e.source!==fr.contentWindow||e.origin!==viewerOrigin)return;
+  if(e.data.type==="namsa-whoami"&&stu)e.source.postMessage({type:"namsa-identity",id:stu.id,label:stu.label},e.origin);
+  if(e.data.type==="namsa-identity-mismatch"){
+    closeViewer();
+    toast("Please use the same student ID you signed in with, because it is used to identify you.");
+  }
+});
 
 /* ---- misc ---- */
 $("#q").oninput=render;
