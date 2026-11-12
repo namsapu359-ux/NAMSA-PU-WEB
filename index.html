@@ -483,6 +483,8 @@ textarea{resize:vertical;min-height:84px}
       <div class="panel">
         <div class="adm-top"><div><h2>CENTRAL SECURITY &amp; CONNECTED PLATFORMS</h2><p style="color:var(--muted)">Every committee website signs students in through this portal. A committee shows <b>Securely Connected</b> only after the server has verified it. Step by step: 1) save the committee's website link in the Committees tab, 2) Configure integration, 3) put the credentials into that committee's Supabase project, 4) Test connection.</p></div></div>
         <div class="statrow" id="secSummary"></div>
+        <div class="row" style="margin:0 0 14px"><button class="btn alt" id="secCheck" style="flex:none">Check security service</button></div>
+        <div class="note" id="secDiag" hidden></div>
         <div id="platList"></div>
       </div>
       <div class="panel">
@@ -1103,11 +1105,12 @@ try{sessionStorage.removeItem("namsa_idx")}catch{}   /* a typed student ID is ne
 async function sso(path,body){
   const {data}=await sb.auth.getSession();
   const tok=data.session?.access_token||"";
+  if(location.protocol==="file:")return{ok:false,status:0,reason:"network",error:"Open the website from its real address (https://…), not from a file on your computer."};
   try{
     const res=await fetch(CONFIG.SSO_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok,apikey:CONFIG.SUPABASE_ANON_KEY},body:JSON.stringify(body||{})});
     const j=await res.json().catch(()=>({}));
     return {...j,status:res.status,ok:res.ok&&j.ok!==false};
-  }catch{return{ok:false,reason:"network",error:"Could not reach the security service. Check your connection."}}
+  }catch{return{ok:false,status:0,reason:"network",error:"Could not reach the security service."}}
 }
 
 let stuEmail="";
@@ -1382,6 +1385,28 @@ function renderSecurity(){
       ${p.status==="failed"&&p.last_error?`<div>Problem<br><b>${esc(p.last_error)}</b></div>`:""}
     </div></div>`}).join(""):'<div class="empty">No committees yet. Add them in the Committees tab.</div>';
 }
+/* Explains exactly why the security service cannot be used (shown in the Security tab and in the Configure box). */
+async function diagnose(){
+  let msg,good=false;
+  if(location.protocol==="file:")msg="You opened the page as a file on your computer. Open the website from its real address (https://…) and try again.";
+  else{
+    try{
+      const res=await fetch(CONFIG.SSO_URL+"/health");
+      const j=await res.json().catch(()=>null);
+      if(!res.ok||!j)msg="The function namsa-sso answered with an error ("+res.status+"). In Supabase open Edge Functions, namsa-sso, Logs. It is usually a badly pasted SSO_PRIVATE_JWK.";
+      else if(!j.site_origin)msg="The secret SITE_ORIGIN is not set. Add it exactly as "+location.origin+" (no slash at the end), then deploy namsa-sso again.";
+      else if(j.site_origin!==location.origin)msg="SITE_ORIGIN is set to "+j.site_origin+" but this website is "+location.origin+". Change the secret SITE_ORIGIN to exactly "+location.origin+" (no slash, no path), then deploy namsa-sso again.";
+      else if(!j.signing_key_ok)msg="Signing key problem: "+(j.signing_key_problem||"invalid")+" Generate the key again and save it as the secret SSO_PRIVATE_JWK.";
+      else{msg="The security service is working and SITE_ORIGIN matches this website. If saving still fails, the message appears under Save.";good=true}
+    }catch{
+      msg="Cannot reach the function namsa-sso. In the main Supabase check that an Edge Function named exactly namsa-sso exists, is deployed, and has Verify JWT switched OFF.";
+    }
+  }
+  const d=$("#secDiag");if(d){d.hidden=false;d.textContent=msg;d.style.background=good?"#e8f7ee":"#fff8e1"}
+  return msg;
+}
+$("#secCheck").onclick=async()=>{$("#secDiag").hidden=false;$("#secDiag").textContent="Checking…";await diagnose()};
+
 let pcId=null,pcAuto="";
 function openPlatCfg(id){
   const c=list.find(x=>String(x.id)===String(id));if(!c)return;
@@ -1404,9 +1429,15 @@ $("#pcSave").onclick=async()=>{
   if(!$("#pcEx").value.trim())return err("Enter the committee's exchange function link.");
   err("Saving…");
   const r=await sso("/admin/register",{committee_id:pcId,repo_url:$("#pcRepo").value.trim(),supabase_url:$("#pcSup").value.trim(),callback_url:$("#pcCb").value.trim(),exchange_url:$("#pcEx").value.trim(),rotate:$("#pcRot").checked});
-  if(!r.ok)return err(r.error||"Could not save.");
+  if(!r.ok){
+    if(r.status===0)return err(await diagnose());
+    if(r.status===401||r.status===403)return err(r.error||"Your admin session was not accepted. Sign out, sign in again, then retry.");
+    if(r.status===404)return err("The function namsa-sso was not found. In the main Supabase, deploy an Edge Function named exactly namsa-sso.");
+    return err(r.error||"The security service returned an error ("+r.status+"). In Supabase open Edge Functions, namsa-sso, Logs to see why.");
+  }
   close();await loadPlatforms();
   if(r.client_secret){
+    toast("Saved. It shows Pending Integration until Test connection passes.");
     $("#crMain").value=r.main_sso_url||"";$("#crId").value=r.client_id||"";$("#crSec").value=r.client_secret;open("#credO");
   }else toast("Saved. Run Test connection to verify it.");
 };
