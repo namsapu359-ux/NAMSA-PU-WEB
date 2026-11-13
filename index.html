@@ -1131,7 +1131,11 @@ $("#stuSend").onclick=async()=>{
   stuErr("Sending code…");
   const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:false}});
   sset("namsa_otp",Date.now()+30000);
-  if(error)return stuErr("We could not send a code. Check that this is the email registered with NAMSA, or contact a NAMSA executive.");
+  if(error){
+    console.warn("Student sign-in code failed:",error.status,error.message);   /* the exact reason, for the admin (F12 > Console) */
+    if(error.status===429||/rate limit|too many|after \d+ seconds/i.test(error.message||""))return stuErr("Too many codes were requested. Please wait a few minutes and try again.");
+    return stuErr("We could not send a code. Check that this is the email registered with NAMSA, or contact a NAMSA executive.");
+  }
   stuEmail=em;stuErr("");stuShow(2);
   $("#stuHint").textContent="We sent a code to "+em+". Enter it below. It expires soon.";
   setTimeout(()=>$("#stuCode").focus(),50);
