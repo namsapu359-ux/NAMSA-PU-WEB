@@ -488,7 +488,7 @@ textarea{resize:vertical;min-height:84px}
         <div id="platList"></div>
       </div>
       <div class="panel">
-        <div class="adm-top"><div><h2>Verified student roster</h2><p style="color:var(--muted)">Students sign in with a one-time code sent to the email listed here. The server maps that verified email to one student ID, so nobody can type or switch to another ID. Upload an Excel or CSV file with the columns “Index Number”, “Name” and “Email”.</p></div></div>
+        <div class="adm-top"><div><h2>Optional student roster</h2><p style="color:var(--muted)">Not needed for sign-in. Students sign in with their student ID, checked against the NAMSA dues list. Use this roster only if you want to block a student or set the name shown. Columns: “Index Number”, “Name” and “Email”.</p></div></div>
         <div class="item">
           <div class="t"><b id="rosterCount">Checking roster…</b><small id="rosterMsg">New students can use Student sign in straight after you save them.</small></div>
           <div class="acts"><label class="btn">Upload roster<input type="file" id="rosterF" accept=".xlsx,.xls,.csv" hidden></label></div>
@@ -561,20 +561,17 @@ textarea{resize:vertical;min-height:84px}
   </div>
 </div>
 
-<!-- Student sign in -->
+<!-- Student sign in (student ID, checked against the dues list) -->
 <div class="overlay" id="stuO">
   <div class="modal" role="dialog" aria-label="Student sign in">
     <h3>🎓 Student sign in</h3>
-    <p class="hint" id="stuHint" style="margin-bottom:6px">Enter the email address registered with NAMSA. We will send you a one-time code.</p>
-    <div id="stuStep1">
-      <label for="stuEm">Registered email</label><input type="email" id="stuEm" autocomplete="email">
-      <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="stuSend">Send code</button></div>
-    </div>
-    <div id="stuStep2" hidden>
-      <label for="stuCode">Code from your email</label><input type="text" id="stuCode" inputmode="numeric" maxlength="10" autocomplete="one-time-code">
-      <div class="row"><button class="btn alt" id="stuBack">Back</button><button class="btn" id="stuVerify">Verify and sign in</button></div>
-    </div>
+    <p class="hint" id="stuHint" style="margin-bottom:4px">Enter your student ID (index number). You must have paid your NAMSA dues to sign in.</p>
+    <label for="stuId">Student ID (index number)</label>
+    <input type="text" id="stuId" autocomplete="off" placeholder="e.g. PU/2023/001">
+    <div class="idnote"><b>Important:</b> use your own student ID. It must match your name, because it is used to identify you when you submit an issue.</div>
+    <div class="bad" id="stuBad" hidden></div>
     <div class="err" id="stuErr"></div>
+    <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="stuGo">Sign in</button></div>
   </div>
 </div>
 
@@ -678,7 +675,7 @@ const store=(()=>{try{sessionStorage.setItem("_t","1");sessionStorage.removeItem
 const sb=(configured&&typeof supabase!=="undefined")
   ?supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY,{auth:Object.assign({persistSession:true,autoRefreshToken:true,detectSessionInUrl:false},store?{storage:store}:{})})
   :null;
-let links={},slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],session=null,viewerOrigin="",stu=null,platforms={},pendingC=null,cfmC=null,editingId=null,pickedIcon="🏛️",pastOpen=false;
+let links={},slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],session=null,viewerOrigin="",stu=null,stuToken="",platforms={},pendingC=null,cfmC=null,editingId=null,pickedIcon="🏛️",pastOpen=false;
 
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2800)}
 const safeUrl=u=>{try{const x=new URL(u);return /^https?:$/.test(x.protocol)?x.href:""}catch{return""}};
@@ -821,18 +818,13 @@ function paintAuth(){
 }
 /* Decides who the signed-in browser is. Returns "admin", "student" or "none" (and signs out unknown accounts). */
 async function handleAuth(s){
-  if(!s||!sb){session=null;stu=null;paintAuth();return "none"}
-  let admin=false,student=null;
+  if(!s||!sb){session=null;paintAuth();return "none"}
+  let admin=false;
   try{const r=await sb.rpc("is_namsa_admin");admin=!r.error&&r.data===true}catch{}
-  if(!admin){
-    try{const r=await sb.rpc("namsa_me"),d=r.data;
-      if(!r.error&&d&&d.student_id)student={id:d.student_id,label:d.label||d.student_id,name:d.name||""}}catch{}
-  }
-  if(admin){session=s;stu=null}
-  else if(student){session=null;stu=student}
-  else{session=null;stu=null;try{await sb.auth.signOut()}catch{}}
+  if(admin){session=s;stu=null;stuToken=""}
+  else{session=null;try{await sb.auth.signOut()}catch{}}
   paintAuth();bumpIdle();
-  return admin?"admin":student?"student":"none";
+  return admin?"admin":"none";
 }
 /* Signing out of the portal also signs the student out of the open committee (the committee site listens for this). */
 async function endViewer(){
@@ -844,8 +836,9 @@ async function endViewer(){
 }
 async function doSignOut(msg){
   await endViewer();
-  closeAdmin();session=null;stu=null;pendingC=null;paintAuth();
-  if(sb){try{await sb.auth.signOut()}catch{}}
+  closeAdmin();session=null;stu=null;stuToken="";pendingC=null;paintAuth();
+  try{sessionStorage.removeItem("namsa_stu")}catch{}
+  if(sb&&sb.auth){try{await sb.auth.signOut()}catch{}}
   toast(msg||"Signed out");
 }
 async function login(){
@@ -872,7 +865,7 @@ async function login(){
   else{
     err("This account is not an admin. Students use the Student sign in button.");
     try{await sb.auth.signOut()}catch{}
-    stu=null;paintAuth();
+    paintAuth();
   }
 }
 $("#loginGo").onclick=login;
@@ -1103,8 +1096,9 @@ try{sessionStorage.removeItem("namsa_idx")}catch{}   /* a typed student ID is ne
 
 /* calls the central security service (Edge Function) with the signed-in user's token */
 async function sso(path,body){
-  const {data}=await sb.auth.getSession();
-  const tok=data.session?.access_token||"";
+  let tok="";
+  if(path.startsWith("/admin")){const {data}=await sb.auth.getSession();tok=data.session?.access_token||""}
+  else tok=stuToken;
   if(location.protocol==="file:")return{ok:false,status:0,reason:"network",error:"Open the website from its real address (https://…), not from a file on your computer."};
   try{
     const res=await fetch(CONFIG.SSO_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok,apikey:CONFIG.SUPABASE_ANON_KEY},body:JSON.stringify(body||{})});
@@ -1113,49 +1107,43 @@ async function sso(path,body){
   }catch{return{ok:false,status:0,reason:"network",error:"Could not reach the security service."}}
 }
 
-let stuEmail="";
 const stuErr=m=>{$("#stuErr").textContent=m||""};
-const stuShow=n=>{$("#stuStep1").hidden=n!==1;$("#stuStep2").hidden=n!==2};
 function openStudentModal(c){
-  pendingC=c||null;stuErr("");$("#stuCode").value="";stuShow(1);
-  $("#stuHint").textContent="Enter the email address registered with NAMSA. We will send you a one-time code.";
-  open("#stuO");setTimeout(()=>$("#stuEm").focus(),50);
+  pendingC=c||null;stuErr("");$("#stuBad").hidden=true;$("#stuId").value="";
+  open("#stuO");setTimeout(()=>$("#stuId").focus(),50);
 }
 $("#navStu").onclick=()=>{if(!stu)openStudentModal()};
-$("#stuSend").onclick=async()=>{
-  const em=$("#stuEm").value.trim().toLowerCase();
+function startStudent(session,student){
+  stuToken=session;stu={id:student.id,label:student.label||student.id,name:student.name||""};
+  try{sessionStorage.setItem("namsa_stu",JSON.stringify({session,student:stu}))}catch{}
+  paintAuth();bumpIdle();
+}
+/* keep a student signed in while the tab stays open and the 30-minute session has not ended */
+(function(){
+  try{
+    const v=JSON.parse(sessionStorage.getItem("namsa_stu")||"null");if(!v||!v.session)return;
+    const exp=JSON.parse(atob(v.session.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).exp;
+    if(exp*1000>Date.now()){stuToken=v.session;stu=v.student}else sessionStorage.removeItem("namsa_stu");
+  }catch{}
+})();
+$("#stuGo").onclick=async()=>{
+  const id=normIdx($("#stuId").value);
+  $("#stuBad").hidden=true;
+  if(!id)return stuErr("Enter your student ID.");
   if(!sb)return stuErr("The portal is not connected to Supabase.");
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))return stuErr("Enter the email address registered with NAMSA.");
-  const wait=+(sget("namsa_otp")||0)-Date.now();
-  if(wait>0)return stuErr("Please wait "+Math.ceil(wait/1000)+" seconds before asking for another code.");
-  stuErr("Sending code…");
-  const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:false}});
-  sset("namsa_otp",Date.now()+30000);
-  if(error){
-    console.warn("Student sign-in code failed:",error.status,error.message);   /* the exact reason, for the admin (F12 > Console) */
-    if(error.status===429||/rate limit|too many|after \d+ seconds/i.test(error.message||""))return stuErr("Too many codes were requested. Please wait a few minutes and try again.");
-    return stuErr("We could not send a code. Check that this is the email registered with NAMSA, or contact a NAMSA executive.");
-  }
-  stuEmail=em;stuErr("");stuShow(2);
-  $("#stuHint").textContent="We sent a code to "+em+". Enter it below. It expires soon.";
-  setTimeout(()=>$("#stuCode").focus(),50);
-};
-$("#stuBack").onclick=()=>{stuErr("");stuShow(1)};
-$("#stuVerify").onclick=async()=>{
-  const token=$("#stuCode").value.replace(/\s/g,"");
-  if(!/^\d{6,10}$/.test(token))return stuErr("Enter the code from your email.");
   stuErr("Checking…");
-  const {data,error}=await sb.auth.verifyOtp({email:stuEmail,token,type:"email"});
-  if(error)return stuErr("That code is wrong or has expired.");
-  const who=await handleAuth(data.session);
-  if(who==="student"){
-    close();toast("Signed in as "+stu.label);
+  const r=await sso("/student-login",{student_id:id});
+  if(r.ok&&r.session){
+    stuErr("");startStudent(r.session,r.student);close();
+    toast("Signed in as "+(stu.name||stu.label));
     const c=pendingC;pendingC=null;if(c)openCommittee(c);
-  }else if(who==="admin"){close()}
-  else stuErr("This email is not on the NAMSA student roster.");
+    return;
+  }
+  stuErr("");
+  if(r.reason==="dues")return showPayMessage(num(r.paid,0),num(r.min,50),num(r.full,100),"#stuBad");
+  stuErr(r.error||"Could not sign in. Please try again.");
 };
-$("#stuEm").addEventListener("keydown",e=>{if(e.key==="Enter")$("#stuSend").click()});
-$("#stuCode").addEventListener("keydown",e=>{if(e.key==="Enter")$("#stuVerify").click()});
+$("#stuId").addEventListener("keydown",e=>{if(e.key==="Enter")$("#stuGo").click()});
 
 /* tapping a committee */
 function openCommittee(c){
@@ -1169,14 +1157,15 @@ function openCommittee(c){
   $("#cfmErr").textContent="";$("#cfmBad").hidden=true;
   open("#cfmO");
 }
-function showPayMessage(paid,min,full){
+function showPayMessage(paid,min,full,target){
+  target=target||"#cfmBad";
   const pct=Math.round(min/full*100),link=safeUrl(settings.paystack_url||"");
   const head=paid>0
-    ?`<b>You have paid ${cedi(paid)} so far, which is below the ${cedi(min)} needed.</b><br>Pay at least ${cedi(min-paid)} more to open this committee, or ${cedi(Math.max(full-paid,0))} to complete your full dues.`
-    :`<b>We could not find a payment for your student ID.</b><br>Please pay your NAMSA dues before you can report an issue to this committee. Pay ${pct}% (${cedi(min)}) or pay in full (${cedi(full)}).`;
-  $("#cfmBad").innerHTML=head+`<br><br>Use your student ID when paying so your payment can be matched. Your access opens once NAMSA updates the paid list.`
+    ?`<b>Pay your NAMSA dues before you can sign in or visit a committee to report an issue.</b><br>You have paid ${cedi(paid)} so far, which is below the ${cedi(min)} needed. Pay at least ${cedi(min-paid)} more, or ${cedi(Math.max(full-paid,0))} to complete your full dues.`
+    :`<b>Pay your NAMSA dues before you can sign in or visit a committee to report an issue.</b><br>We could not find a payment for this student ID. Pay ${pct}% (${cedi(min)}) or pay in full (${cedi(full)}).`;
+  $(target).innerHTML=head+`<br><br>Use your student ID when paying so your payment can be matched. Your access opens once NAMSA updates the paid list.`
     +(link?`<br><a class="btn" style="margin-top:10px" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Pay on Paystack ↗</a>`:`<br>Please contact a NAMSA executive to pay.`);
-  $("#cfmBad").hidden=false;
+  $(target).hidden=false;
 }
 $("#cfmGo").onclick=async()=>{
   const c=cfmC;if(!c)return;
