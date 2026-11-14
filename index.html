@@ -1502,9 +1502,13 @@ addEventListener("message",e=>{
   const fr=$("#vFrame");
   if(!fr||!e.data||e.source!==fr.contentWindow||e.origin!==viewerOrigin)return;
   if(e.data.type==="namsa-whoami"&&stu)e.source.postMessage({type:"namsa-identity",id:stu.id,label:stu.label},e.origin);
-  if(e.data.type==="namsa-identity-mismatch"){
+  if(e.data.type==="namsa-identity-mismatch"||e.data.type==="namsa-blocked"){
     closeViewer();
-    toast("Please use the same student ID you signed in with, because it is used to identify you.");
+    if(location.hash==="#viewer")history.replaceState(null,"",location.pathname+location.search);
+    const c=$("#committees");if(c)c.scrollIntoView();
+    toast(e.data.type==="namsa-identity-mismatch"
+      ?"You used a different student ID. Please use the same student ID you signed in with, because it is used to identify you."
+      :String(e.data.message||"Please open this committee from the portal.").slice(0,160));
   }
 });
 
