@@ -1177,6 +1177,7 @@ $("#stuGo").onclick=async()=>{
   }
   stuErr("");
   if(r.reason==="dues")return showPayMessage(num(r.paid,0),num(r.min,50),num(r.full,100),"#stuBad",$("#stuId").value);
+  if(r.status===0){stuErr("Checking…");const m=await diagnose();return stuErr("Sign-in is unavailable right now. "+m)}
   stuErr(r.error||"Could not sign in. Please try again.");
 };
 $("#stuId").addEventListener("keydown",e=>{if(e.key==="Enter")$("#stuGo").click()});
@@ -1482,8 +1483,8 @@ async function diagnose(){
       const res=await fetch(CONFIG.SSO_URL+"/health");
       const j=await res.json().catch(()=>null);
       if(!res.ok||!j)msg="The function namsa-sso answered with an error ("+res.status+"). In Supabase open Edge Functions, namsa-sso, Logs. It is usually a badly pasted SSO_PRIVATE_JWK.";
-      else if(!j.site_origin)msg="The secret SITE_ORIGIN is not set. Add it exactly as "+location.origin+" (no slash at the end), then deploy namsa-sso again.";
-      else if(j.site_origin!==location.origin)msg="SITE_ORIGIN is set to "+j.site_origin+" but this website is "+location.origin+". Change the secret SITE_ORIGIN to exactly "+location.origin+" (no slash, no path), then deploy namsa-sso again.";
+      else if(!(j.site_origins||[j.site_origin]).filter(Boolean).length)msg="The secret SITE_ORIGIN is not set. Add it exactly as "+location.origin+" (no slash at the end), then deploy namsa-sso again.";
+      else if(!(j.site_origins||[j.site_origin]).includes(location.origin))msg="The sign-in service only allows "+(j.site_origins||[j.site_origin]).join(", ")+" but this website is "+location.origin+". Set the secret SITE_ORIGIN to include exactly "+location.origin+" (separate several addresses with commas), then deploy namsa-sso again.";
       else if(!j.signing_key_ok)msg="Signing key problem: "+(j.signing_key_problem||"invalid")+" Generate the key again and save it as the secret SSO_PRIVATE_JWK.";
       else{msg="The security service is working and SITE_ORIGIN matches this website. If saving still fails, the message appears under Save.";good=true}
     }catch{
