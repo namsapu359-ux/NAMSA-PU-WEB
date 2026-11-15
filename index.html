@@ -4,9 +4,63 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0a4d57">
-<title>NAMSA-PU Digital Portal Hub</title>
-<meta name="description" content="Nursing and Midwifery Students Association, PU: leadership and committee platforms.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+<title>NAMSA-PU Official Website</title>
+<meta name="description" content="Welcome to the NAMSA-PU Official Website, the digital platform of the Nursing and Midwifery Students’ Association, Pentecost University. Here, students can report issues, complete forms, submit suggestions, meet association leaders, access communication channels, and explore all association services.">
+<meta name="keywords" content="NAMSA-PU, NAMSA PU, NAMSA-PU Official Website, Pentecost University, Nursing and Midwifery Students’ Association, Nursing and Midwifery Students’ Association Pentecost University, namsapu.com">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://namsapu.com/">
+
+<!-- icons: the official NAMSA-PU logo -->
+<link rel="icon" type="image/png" sizes="512x512" href="/favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+<!-- social sharing -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NAMSA-PU Official Website">
+<meta property="og:title" content="NAMSA-PU Official Website">
+<meta property="og:description" content="Welcome to the NAMSA-PU Official Website, the digital platform of the Nursing and Midwifery Students’ Association, Pentecost University. Here, students can report issues, complete forms, submit suggestions, meet association leaders, access communication channels, and explore all association services.">
+<meta property="og:url" content="https://namsapu.com/">
+<meta property="og:image" content="https://namsapu.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Official logo of the Nursing and Midwifery Students’ Association, Pentecost University (NAMSA-PU)">
+<meta property="og:locale" content="en_GH">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="NAMSA-PU Official Website">
+<meta name="twitter:description" content="Welcome to the NAMSA-PU Official Website, the digital platform of the Nursing and Midwifery Students’ Association, Pentecost University. Here, students can report issues, complete forms, submit suggestions, meet association leaders, access communication channels, and explore all association services.">
+<meta name="twitter:image" content="https://namsapu.com/og-image.png">
+
+<!-- structured data for Google (Schema.org JSON-LD) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://namsapu.com/#website",
+      "name": "NAMSA-PU Official Website",
+      "alternateName": "NAMSA-PU",
+      "url": "https://namsapu.com/",
+      "description": "Welcome to the NAMSA-PU Official Website, the digital platform of the Nursing and Midwifery Students’ Association, Pentecost University. Here, students can report issues, complete forms, submit suggestions, meet association leaders, access communication channels, and explore all association services.",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://namsapu.com/#organization"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://namsapu.com/#organization",
+      "name": "Nursing and Midwifery Students’ Association, Pentecost University",
+      "alternateName": [
+        "NAMSA-PU",
+        "NAMSA PU"
+      ],
+      "url": "https://namsapu.com/",
+      "logo": "https://namsapu.com/favicon.png"
+    }
+  ]
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" defer></script>
 <!--
@@ -304,6 +358,7 @@ textarea{resize:vertical;min-height:84px}
 </style>
 </head>
 <body>
+<noscript><div style="padding:18px 20px;font-family:system-ui,sans-serif;background:#fff;color:#0a1f2c;line-height:1.5"><h1 style="font-size:1.4rem;margin:0 0 8px">NAMSA-PU Official Website</h1><p style="margin:0">The official website of the Nursing and Midwifery Students’ Association, Pentecost University (NAMSA-PU). Students can report issues, complete forms, submit suggestions, meet association leaders, access communication channels and explore all association services. Please turn on JavaScript to use the interactive features of this site.</p></div></noscript>
 
 <header>
   <nav class="wrap">
@@ -329,9 +384,9 @@ textarea{resize:vertical;min-height:84px}
     <div class="wrap hero-grid">
       <div class="hero-copy">
         <div class="hlogo" id="heroLogo"></div>
-        <span class="kicker">Nursing and Midwifery Students Association</span>
+        <span class="kicker">Nursing and Midwifery Students’ Association, Pentecost University (NAMSA-PU)</span>
         <h1>Welcome to <em>NAMSA-PU</em></h1>
-        <p>Your digital home for our leaders, our committees and every student service, all in one place.</p>
+        <p>The NAMSA-PU Official Website: the digital platform of the Nursing and Midwifery Students’ Association, Pentecost University. Report issues, complete forms, submit suggestions, meet our leaders and explore all association services.</p>
         <div class="acts">
           <a class="btn light" href="#leadership">Meet our leaders</a>
           <a class="btn ghost" href="#committees">Open committees</a>
@@ -391,7 +446,7 @@ textarea{resize:vertical;min-height:84px}
 
 <footer>
   <div class="wrap fgrid">
-    <div><div id="fLogo"></div><h4>NAMSA-PU Digital Portal Hub</h4><p>The central homepage of the Nursing and Midwifery Students Association, PU.</p></div>
+    <div><div id="fLogo"></div><h4>NAMSA-PU Official Website</h4><p>The official website of the Nursing and Midwifery Students’ Association, Pentecost University (NAMSA-PU).</p></div>
     <div><h4>Explore</h4><a href="#home">Home</a><a href="#leadership">Leadership</a><a href="#committees">Committees</a><a href="#about">About</a></div>
     <div><a href="#" id="fAdmin" aria-label="Admin login" title="Admin login" style="display:inline-block;font-size:1.6rem;line-height:1;padding:6px 12px">.</a></div>
   </div>
@@ -1042,7 +1097,6 @@ function renderBrand(){
   const u=safeUrl(settings.logo_url||""),img=c=>`<img src="${esc(u)}" alt="NAMSA-PU logo" class="${c}">`;
   $("#hLogo").innerHTML=u?img(""):"🎓";$("#hLogo").classList.toggle("img",!!u);
   $("#heroLogo").innerHTML=u?img(""):"";$("#fLogo").innerHTML=u?img("fl"):"";
-  if(u)document.querySelector('link[rel="icon"]').href=u;
 }
 function startTimer(){clearInterval(timer);if(slides.length>1&&!reduced)timer=setInterval(()=>goSlide(si+1),5000)}
 function goSlide(i){
