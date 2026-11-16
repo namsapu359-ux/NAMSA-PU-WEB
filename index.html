@@ -685,7 +685,22 @@ textarea{resize:vertical;min-height:84px}
     <div class="idnote"><b>Important:</b> use your own student ID. It must match your name, because it is used to identify you when you submit an issue.</div>
     <div class="bad" id="stuBad" hidden></div>
     <div class="err" id="stuErr"></div>
+    <p class="hint" style="margin:8px 0 0">Already paid but cannot sign in? <a href="#" id="stuClaim">Verify my payment</a></p>
     <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="stuGo">Sign in</button></div>
+  </div>
+</div>
+
+<!-- Already paid? verify payment -->
+<div class="overlay" id="claimO">
+  <div class="modal" role="dialog" aria-label="Verify my payment">
+    <h3>✅ I have already paid</h3>
+    <p class="hint" style="margin-bottom:4px">If you already paid your NAMSA dues, enter your name and student ID. We check the payment with Paystack, add you to the paid list and sign you in.</p>
+    <label for="clId">Student ID (index number)</label><input type="text" id="clId" autocomplete="off">
+    <label for="clName">Full name</label><input type="text" id="clName" autocomplete="name">
+    <label for="clRef">Payment reference (from your Paystack receipt or SMS/email)</label><input type="text" id="clRef" autocomplete="off" placeholder="Optional if you typed your student ID when paying">
+    <div class="idnote">Use your own student ID and name. Your payment is checked directly with Paystack.</div>
+    <div class="err" id="clErr"></div>
+    <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="clGo">Verify my payment</button></div>
   </div>
 </div>
 
@@ -849,7 +864,7 @@ const byRole=(a,b)=>(a.role===b.role?0:a.role==="executive"?-1:1)||rank(a)-rank(
 const photo=p=>{const u=safeUrl(p.photo_url);return u?`<img src="${esc(u)}" alt="${esc(p.name)}" loading="lazy">`:`<span>${esc(ini(p.name))}</span>`};
 const person=p=>`<div class="person" role="button" tabindex="0" data-pid="${esc(p.id)}" aria-label="View ${esc(p.name)}"><div class="ph">${photo(p)}</div><b>${esc(p.name)}</b><small>${esc(p.position)}</small></div>`;
 const ORG="Nursing and Midwifery Students’ Association, Pentecost University (NAMSA-PU)";
-let leaderTab="current";
+let leaderTab="appointees";
 const yearsOf=()=>[...new Set(people.filter(p=>p.role!=="patron"&&p.year_label&&!p.archived).map(p=>p.year_label))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
 
 function renderPeople(){
@@ -864,16 +879,10 @@ function renderPeople(){
   renderCarousel();   /* 1. the Patron and the current executives slide at the top, 5 seconds each */
   if(!people.length){$("#leaders").innerHTML='<div class="empty">Leadership profiles will appear here once the admin adds them.</div>';return}
   /* 2. tabs: Current executives | Appointees | Past executives */
-  const tabs=[["current","Current executives",ex.length],["appointees","Appointees",ap.length],["past","Past executives",past.length]];
+  const tabs=[["appointees","Appointees",ap.length],["past","Past executives",past.length]];
+  if(leaderTab==="current")leaderTab="appointees";   /* current executives already slide at the top, so they are not repeated here */
   h+=`<div class="ltabs" role="tablist">${tabs.map(([k,t,n])=>`<button type="button" role="tab" class="ltab ${leaderTab===k?"on":""}" data-ltab="${k}" aria-selected="${leaderTab===k}">${t}<span>${n}</span></button>`).join("")}</div>`;
-  if(leaderTab==="current"){
-    if(ex.length){
-      const pres=ex.find(p=>rank(p)===0),rest=ex.filter(p=>p!==pres);
-      h+=`<div class="sub" style="margin-top:0">Current administration${cur?`<span class="yrtag">${esc(cur)}</span>`:""}</div>`;
-      if(pres)h+=card(pres,"President");
-      if(rest.length)h+=`<div class="ppl" style="margin-top:26px">${rest.map(person).join("")}</div>`;
-    }else h+='<div class="empty">The current executives will appear here once they are added.</div>';
-  }else if(leaderTab==="appointees"){
+  if(leaderTab==="appointees"){
     h+=ap.length?`<div class="ppl">${ap.map(person).join("")}</div>`:'<div class="empty">Appointees will appear here once they are added.</div>';
   }else{
     if(past.length){
@@ -1355,10 +1364,13 @@ function showPayMessage(paid,min,full,target,idPrefill){
   if(CONFIG.PAYSTACK_PUBLIC_KEY)tail=`<br><button class="btn" data-paynow style="margin-top:10px">Pay now with Paystack</button>`;
   else if(link)tail=`<br><a class="btn" style="margin-top:10px" href="${esc(link)}" target="_blank" rel="noopener noreferrer">Pay on Paystack ↗</a>`;
   else tail=`<br>Please contact a NAMSA executive to pay.`;
-  $(target).innerHTML=head+`<br><br>You will type your student ID and name when you pay. After paying you are signed in automatically.`+tail;
+  $(target).innerHTML=head+`<br><br>You will type your student ID and name when you pay. After paying you are signed in automatically.`+tail
+    +`<br><br><b>Already paid?</b> Enter your name and student ID and we will confirm the payment, add you to the paid list and sign you in.<br><button class="btn alt" data-claim style="margin-top:8px">I have already paid</button>`;
   $(target).hidden=false;
   const nb=$(target).querySelector("[data-paynow]");
   if(nb)nb.onclick=()=>openPay(idPrefill||(stu&&stu.label)||"",paid,min,full);
+  const cb=$(target).querySelector("[data-claim]");
+  if(cb)cb.onclick=()=>openClaim(idPrefill||(stu&&stu.label)||"");
 }
 
 /* ---- pay NAMSA dues with the Paystack popup ---- */
@@ -1417,6 +1429,32 @@ $("#payGo").onclick=async()=>{
     callback:function(resp){paid=true;finishPay((resp&&resp.reference)||ref)},
     onClose:function(){if(!paid)err("Payment window closed. If you already paid, wait a minute, then sign in with your student ID.")}
   }).openIframe();
+};
+
+/* ---- already paid: confirm an earlier payment, add to the list, sign in ---- */
+function openClaim(idPrefill){
+  $("#clId").value=idPrefill||"";$("#clErr").textContent="";
+  close();open("#claimO");setTimeout(()=>$(idPrefill?"#clName":"#clId").focus(),50);
+}
+$("#stuClaim").onclick=e=>{e.preventDefault();openClaim($("#stuId").value)};
+$("#clGo").onclick=async()=>{
+  const err=m=>{$("#clErr").textContent=m};
+  const idLabel=$("#clId").value.trim(),id=normIdx(idLabel);
+  const name=$("#clName").value.trim().replace(/\s+/g," "),ref=$("#clRef").value.trim();
+  if(!id)return err("Enter your student ID.");
+  if(name.length<3)return err("Enter your full name.");
+  err("Checking your payment with Paystack…");
+  const r=await sso("/pay/claim",{student_id:idLabel,name,reference:ref});
+  if(r.ok&&r.session){
+    startStudent(r.session,r.student);close();
+    toast("Payment confirmed. Welcome, "+(stu.name||stu.label));
+    const c=pendingC;pendingC=null;if(c)openCommittee(c);
+    return;
+  }
+  if(r.reason==="dues")return err("We found "+cedi(num(r.paid,0))+" for this student ID, which is below the "+cedi(num(r.min,50))+" needed. Add your payment reference if you paid more.");
+  if(r.reason==="need_reference")return err("We could not find your payment automatically. Enter the payment reference from your Paystack receipt and try again.");
+  if(r.status===0){const m=await diagnose();return err("Verification is unavailable right now. "+m)}
+  err(r.error||"We could not confirm the payment. Please check your details and try again.");
 };
 
 $("#cfmGo").onclick=async()=>{
@@ -1813,7 +1851,9 @@ $("#dlList").onclick=async()=>{
     toast("Preparing the list…");
     const min=num(settings.dues_min,50),rows=await loadList();
     const aoa=[["Index Number","Name","Total Paid (GHS)","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",a,a>=min?"Can open committees":"Below minimum"]})];
-    saveBook([["Paid list",aoa,[22,34,18,24]]],"NAMSA-paid-list-"+stamp()+".xlsx");
+    const pays=await fetchAll(CONFIG.PAYMENTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
+    const pa=[["Index Number","Name","Email","Amount (GHS)","Date","Reference"],...pays.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])];
+    saveBook([["Paid list",aoa,[22,34,18,24]],["Payments",pa,[20,30,30,14,22,30]]],"NAMSA-paid-list-"+stamp()+".xlsx");
     toast("Downloaded "+rows.length+" students");
   }catch(x){toast("Failed: "+(x.message||x))}
 };
