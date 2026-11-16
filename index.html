@@ -1378,10 +1378,10 @@ function openCommittee(c){
   $("#cfmErr").textContent="";$("#cfmBad").hidden=true;
   open("#cfmO");
 }
-function showPayMessage(paid,min,full,target,idPrefill){
+function showPayMessage(paid,min,full,target,idPrefill,intro){
   target=target||"#cfmBad";
   const pct=Math.round(min/full*100),link=safeUrl(settings.paystack_url||"");
-  const head=paid>0
+  const head=intro?`<b>Pay your NAMSA dues.</b><br>Pay ${pct}% (${cedi(min)}) to report an issue, or pay in full (${cedi(full)}) to open all features. Already paid but have no login yet? Verify your payment below and sign in.`:paid>0
     ?`<b>Pay your NAMSA dues before you can sign in or visit a committee to report an issue.</b><br>You have paid ${cedi(paid)} so far, which is below the ${cedi(min)} needed. Pay ${cedi(min-paid)} more to report an issue, or ${cedi(Math.max(full-paid,0))} to complete your full dues and open all features.`
     :`<b>Pay your NAMSA dues before you can sign in or visit a committee to report an issue.</b><br>We could not find a payment for this student ID. Pay ${pct}% (${cedi(min)}) to report an issue, or pay in full (${cedi(full)}) to open all features.`;
   let tail;
@@ -1398,10 +1398,11 @@ function showPayMessage(paid,min,full,target,idPrefill){
 }
 
 $("#heroPay").onclick=()=>{
-  const min=num(settings.dues_min,50),full=num(settings.dues_full,100),link=safeUrl(settings.paystack_url||"");
-  if(!CONFIG.PAYSTACK_PUBLIC_KEY){if(link)window.open(link,"_blank","noopener");else toast("Please contact a NAMSA executive to pay.");return}
-  openPay((stu&&stu.label)||"",0,min,full);
-  if(stu&&stu.name)$("#payName").value=stu.name;
+  const min=num(settings.dues_min,50),full=num(settings.dues_full,100);
+  if(stu){openPay(stu.label||"",0,min,full);if(stu.name)$("#payName").value=stu.name;return}
+  /* same process as opening a committee: sign in with student ID, or pay now, or verify an earlier payment */
+  openStudentModal();
+  showPayMessage(0,min,full,"#stuBad","",true);
 };
 /* ---- pay NAMSA dues with the Paystack popup ---- */
 function loadPaystack(){
@@ -1495,6 +1496,7 @@ $("#clGo").onclick=async()=>{
     return;
   }
   if(r.reason==="dues")return err("We found "+cedi(num(r.paid,0))+" for this student ID, which is below the "+cedi(num(r.min,50))+" needed. Add your payment reference if you paid more.");
+  if(r.reason==="claimed")return err(r.error||"This payment has already been claimed. Sign in with your student ID.");
   if(r.reason==="need_reference")return err("We could not find your payment automatically. Enter the payment reference from your Paystack receipt and try again.");
   if(r.status===0){const m=await diagnose();return err("Verification is unavailable right now. "+m)}
   err(r.error||"We could not confirm the payment. Please check your details and try again.");
