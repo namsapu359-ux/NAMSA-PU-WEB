@@ -56,7 +56,10 @@
         "NAMSA PU"
       ],
       "url": "https://namsapu.com/",
-      "logo": "https://namsapu.com/favicon.png"
+      "logo": "https://namsapu.com/favicon.png",
+      "email": "namsapu359@gmail.com",
+      "telephone": "+233209684674",
+      "contactPoint": {"@type": "ContactPoint", "contactType": "customer support", "email": "namsapu359@gmail.com", "telephone": "+233209684674", "availableLanguage": "English"}
     }
   ]
 }
@@ -254,7 +257,7 @@ section{padding:84px 0}
 @media(max-width:480px){.about .wrap{gap:8px}.tile{padding:12px 6px;border-radius:14px}.tile p{display:none}.tile b{font-size:.7rem;margin:0}.tile .tic{width:36px;height:36px;font-size:1.1rem;margin-bottom:6px}}
 footer{position:relative;background:linear-gradient(135deg,#052e2f,#0a4d57 55%,#0b3d6b);color:#cfe6ec;padding:60px 0 24px}
 footer::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,#10b981,#0ea5e9,#f5b942)}
-.fgrid{display:grid;grid-template-columns:2fr 1fr auto;gap:34px}
+.fgrid{display:grid;grid-template-columns:2fr 1fr 1.4fr auto;gap:34px}
 footer h4{color:#fff;margin-bottom:12px}
 footer a{display:block;padding:3px 0;opacity:.88}footer a:hover{opacity:1;text-decoration:underline}
 .fl{height:56px;background:#fff;border-radius:14px;padding:4px;margin-bottom:14px}
@@ -350,6 +353,20 @@ textarea{resize:vertical;min-height:84px}
 .slot.full{border-style:solid;border-color:var(--emerald);background:var(--mint)}.slot.full span{color:var(--ink);font-weight:600}
 .slot:hover{border-color:var(--emerald)}
 
+/* 6b. LEADERSHIP TABS AND PROFILE */
+.ltabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:46px 0 28px}
+.ltab{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--deep);border:2px solid var(--line);padding:11px 20px;border-radius:999px;font-weight:700;font-size:.95rem;cursor:pointer;font-family:inherit;transition:background .2s,border-color .2s}
+.ltab span{background:var(--mint);color:var(--emerald);font-size:.75rem;padding:2px 9px;border-radius:999px}
+.ltab:hover{border-color:var(--emerald)}
+.ltab.on{background:var(--grad);color:#fff;border-color:transparent}.ltab.on span{background:rgba(255,255,255,.25);color:#fff}
+.person,.patron-card[data-pid]{cursor:pointer}
+.pview{width:min(560px,100%);text-align:center}
+#pvImg img{max-width:100%;max-height:62vh;border-radius:18px;object-fit:contain;background:#f3f9fa;box-shadow:var(--shadow)}
+.pvini{width:170px;height:170px;border-radius:50%;margin:0 auto;display:grid;place-items:center;background:var(--mint);color:var(--teal);font-size:3.4rem;font-weight:800}
+.pview h3{margin:16px 0 4px;font-size:1.5rem}
+.pvpos{color:var(--emerald);font-weight:700;margin-bottom:10px}
+.pvbio{color:var(--ink);line-height:1.6;white-space:pre-wrap;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+
 /* 12. MOTION PREFERENCES */
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -369,6 +386,7 @@ textarea{resize:vertical;min-height:84px}
       <a href="#leadership">Leadership</a>
       <a href="#committees">Committees</a>
       <a href="#about">About</a>
+      <a href="#contact">Contact</a>
       <button id="navStu">Student sign in</button>
       <button id="adminBtn" aria-label="Admin login" title="Admin login" style="font-size:1.6rem;line-height:1;padding:6px 14px">.</button>
       <button id="navOut" hidden style="color:#b42318">Sign out</button>
@@ -447,7 +465,8 @@ textarea{resize:vertical;min-height:84px}
 <footer>
   <div class="wrap fgrid">
     <div><div id="fLogo"></div><h4>NAMSA-PU Official Website</h4><p>The official website of the Nursing and Midwifery Students’ Association, Pentecost University (NAMSA-PU).</p></div>
-    <div><h4>Explore</h4><a href="#home">Home</a><a href="#leadership">Leadership</a><a href="#committees">Committees</a><a href="#about">About</a></div>
+    <div><h4>Explore</h4><a href="#home">Home</a><a href="#leadership">Leadership</a><a href="#committees">Committees</a><a href="#about">About</a><a href="#contact">Contact</a></div>
+    <div id="contact"><h4>Contact us</h4><a href="mailto:namsapu359@gmail.com">✉ namsapu359@gmail.com</a><a href="tel:+233209684674">📞 0209684674</a></div>
     <div><a href="#" id="fAdmin" aria-label="Admin login" title="Admin login" style="display:inline-block;font-size:1.6rem;line-height:1;padding:6px 12px">.</a></div>
   </div>
   <div class="wrap copy">© <span id="yr"></span> NAMSA-PU. All rights reserved.</div>
@@ -623,6 +642,8 @@ textarea{resize:vertical;min-height:84px}
     <div class="hint">The newest year is the current administration. Adding a newer year moves everyone from older years to Past executives automatically.</div></div>
     <label for="pf">Photo (upload)</label><input type="file" id="pf" accept="image/*">
     <label for="pu">Or photo link</label><input type="url" id="pu" placeholder="https://…">
+    <label for="pb">About this person (shown when their box is tapped)</label><textarea id="pb" maxlength="900" placeholder="A few lines about this leader…"></textarea>
+    <label class="chk"><input type="checkbox" id="pa"> Move to past executives</label>
     <div class="err" id="personErr"></div>
     <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="pSave">Save person</button></div>
   </div>
@@ -698,6 +719,17 @@ textarea{resize:vertical;min-height:84px}
   </div>
 </div>
 
+<!-- Leader profile: full picture + about -->
+<div class="overlay" id="viewP">
+  <div class="modal pview" role="dialog" aria-label="Leader profile">
+    <div id="pvImg"></div>
+    <h3 id="pvName"></h3>
+    <p class="pvpos" id="pvPos"></p>
+    <p class="pvbio" id="pvBio"></p>
+    <div class="row"><button class="btn" data-close>Close</button></div>
+  </div>
+</div>
+
 <!-- In-page committee viewer -->
 <div id="viewer" role="dialog" aria-label="Committee platform">
   <div class="vbar"><button id="vBack">← Back to committees</button><b id="vTitle"></b></div>
@@ -727,7 +759,7 @@ const CONFIG = {
 CONFIG.SSO_URL=CONFIG.SUPABASE_URL+"/functions/v1/namsa-sso";   // the central sign-on service (Edge Function)
 /* ======================================================================================== */
 
-const POSITIONS=["President","Vice President","Secretary","Financial Controller","Women's Commissioner","PRO","Organizer","Head of Appointees","Appointee"];
+const POSITIONS=["President","Vice President","Secretary","Women's Commissioner","Financial Controller","PRO","Organizer","Head of Appointees","Appointee"];
 const DUES_DEFAULT=new Set(["NAMSA Welfare Committee","Examination Issues Platform","Financial Committee"]);
 const DEFAULTS = [
   ["NAMSA Welfare Committee","Support, care and welfare services for every student.","🤝"],
@@ -788,35 +820,62 @@ const ini=n=>n.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toU
 const rank=p=>{const i=POSITIONS.findIndex(x=>x.toLowerCase()===(p.position||"").trim().toLowerCase());return i<0?99:i};
 const byRole=(a,b)=>(a.role===b.role?0:a.role==="executive"?-1:1)||rank(a)-rank(b)||(a.sort_order||0)-(b.sort_order||0);
 const photo=p=>{const u=safeUrl(p.photo_url);return u?`<img src="${esc(u)}" alt="${esc(p.name)}" loading="lazy">`:`<span>${esc(ini(p.name))}</span>`};
-const person=p=>`<div class="person"><div class="ph">${photo(p)}</div><b>${esc(p.name)}</b><small>${esc(p.position)}</small></div>`;
-const yearsOf=()=>[...new Set(people.filter(p=>p.role!=="patron"&&p.year_label).map(p=>p.year_label))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+const person=p=>`<div class="person" role="button" tabindex="0" data-pid="${esc(p.id)}" aria-label="View ${esc(p.name)}"><div class="ph">${photo(p)}</div><b>${esc(p.name)}</b><small>${esc(p.position)}</small></div>`;
+const ORG="Nursing and Midwifery Students’ Association, Pentecost University (NAMSA-PU)";
+let leaderTab="current";
+const yearsOf=()=>[...new Set(people.filter(p=>p.role!=="patron"&&p.year_label&&!p.archived).map(p=>p.year_label))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
 
 function renderPeople(){
-  const sl=$("#stL");if(sl)sl.textContent=people.filter(p=>p.role==="patron"||p.year_label===yearsOf()[0]).length;
-  const years=yearsOf(),cur=years[0],pastYears=years.slice(1);
+  const years=yearsOf(),cur=years[0]||"";
+  const sl=$("#stL");if(sl)sl.textContent=people.filter(p=>!p.archived&&(p.role==="patron"||p.year_label===cur)).length;
   const staff=people.filter(p=>p.role!=="patron");
+  const live=staff.filter(p=>!p.archived&&p.year_label===cur);
+  const past=staff.filter(p=>p.archived||p.year_label!==cur);
+  const ex=live.filter(p=>p.role==="executive").sort(byRole),ap=live.filter(p=>p.role==="appointee").sort(byRole);
+  const card=(p,fallback)=>`<div class="patron-card${p.role==="executive"?" pres":""}" role="button" tabindex="0" data-pid="${esc(p.id)}" aria-label="View ${esc(p.name)}"><div class="ph">${photo(p)}</div><b>${esc(p.name)}</b><span class="tag">${esc(p.position||fallback)}</span></div>`;
   let h="";
-  const pats=people.filter(p=>p.role==="patron");
-  if(pats.length)h+=pats.map(p=>`<div class="patron-card"><div class="ph">${photo(p)}</div><b>${esc(p.name)}</b><span class="tag">${esc(p.position||"Patron")}</span></div>`).join("");
-  if(cur){
-    const ex=staff.filter(p=>p.year_label===cur&&p.role==="executive").sort(byRole);
-    const ap=staff.filter(p=>p.year_label===cur&&p.role==="appointee").sort(byRole);
+  /* 1. Patron on top */
+  h+=people.filter(p=>p.role==="patron"&&!p.archived).map(p=>card(p,"Patron")).join("");
+  if(!people.length){$("#leaders").innerHTML='<div class="empty">Leadership profiles will appear here once the admin adds them.</div>';return}
+  /* 2. tabs: Current executives | Appointees | Past executives */
+  const tabs=[["current","Current executives",ex.length],["appointees","Appointees",ap.length],["past","Past executives",past.length]];
+  h+=`<div class="ltabs" role="tablist">${tabs.map(([k,t,n])=>`<button type="button" role="tab" class="ltab ${leaderTab===k?"on":""}" data-ltab="${k}" aria-selected="${leaderTab===k}">${t}<span>${n}</span></button>`).join("")}</div>`;
+  if(leaderTab==="current"){
     if(ex.length){
       const pres=ex.find(p=>rank(p)===0),rest=ex.filter(p=>p!==pres);
-      h+=`<h3 class="sub">Current administration<span class="yrtag">${esc(cur)}</span></h3>`;
-      if(pres)h+=`<div class="patron-card pres"><div class="ph">${photo(pres)}</div><b>${esc(pres.name)}</b><span class="tag">${esc(pres.position||"President")}</span></div>`;
+      h+=`<div class="sub" style="margin-top:0">Current administration${cur?`<span class="yrtag">${esc(cur)}</span>`:""}</div>`;
+      if(pres)h+=card(pres,"President");
       if(rest.length)h+=`<div class="ppl" style="margin-top:26px">${rest.map(person).join("")}</div>`;
-    }
-    if(ap.length)h+=`<h3 class="sub">Appointees</h3><div class="ppl">${ap.map(person).join("")}</div>`;
+    }else h+='<div class="empty">The current executives will appear here once they are added.</div>';
+  }else if(leaderTab==="appointees"){
+    h+=ap.length?`<div class="ppl">${ap.map(person).join("")}</div>`:'<div class="empty">Appointees will appear here once they are added.</div>';
+  }else{
+    if(past.length){
+      const yrs=[...new Set(past.map(p=>p.year_label||"Earlier"))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+      h+=`<div class="past">`+yrs.map(y=>`<div class="yrbox"><span class="yr">${esc(y)} administration</span><div class="ppl">${past.filter(p=>(p.year_label||"Earlier")===y).sort(byRole).map(person).join("")}</div></div>`).join("")+`</div>`;
+    }else h+='<div class="empty">Past executives will appear here automatically when a new administration is added.</div>';
   }
-  if(pastYears.length){
-    const n=staff.filter(p=>p.year_label!==cur).length;
-    h+=`<div class="pastwrap"><button class="pastbadge ${pastOpen?"on":""}" id="pastBtn" aria-expanded="${pastOpen}">🎖 Past executives (${n}) ${pastOpen?"▲":"▼"}</button>
-    <div class="pastpanel" id="pastPanel" ${pastOpen?"":"hidden"}>${pastYears.map(y=>`<div><span class="yr">${esc(y)} administration</span><div class="ppl">${staff.filter(p=>p.year_label===y).sort(byRole).map(person).join("")}</div></div>`).join("")}</div></div>`;
-  }
-  $("#leaders").innerHTML=h||'<div class="empty">Leadership profiles will appear here once the admin adds them.</div>';
+  $("#leaders").innerHTML=h;
 }
-$("#leaders").onclick=e=>{if(e.target.closest("#pastBtn")){pastOpen=!pastOpen;renderPeople()}};
+/* tapping a box shows the full picture and a few lines about the person */
+function openProfile(id){
+  const p=people.find(x=>String(x.id)===String(id));if(!p)return;
+  const u=safeUrl(p.photo_url),isPast=p.role!=="patron"&&(p.archived||p.year_label!==yearsOf()[0]);
+  $("#pvImg").innerHTML=u?`<img src="${esc(u)}" alt="${esc(p.name)}">`:`<div class="pvini">${esc(ini(p.name))}</div>`;
+  $("#pvName").textContent=p.name;
+  $("#pvPos").textContent=[p.position,p.role!=="patron"&&p.year_label?p.year_label+" administration":"",isPast?"Past executive":""].filter(Boolean).join(" · ");
+  const bio=(p.bio||"").trim();
+  $("#pvBio").textContent=bio||`${p.name} ${isPast?"served":"serves"} as ${p.position||"a leader"} of the ${ORG}${p.role!=="patron"&&p.year_label?" for the "+p.year_label+" administration":""}.`;
+  open("#viewP");
+}
+$("#leaders").onclick=e=>{
+  const t=e.target.closest("[data-ltab]");if(t){leaderTab=t.dataset.ltab;renderPeople();return}
+  const pc=e.target.closest("[data-pid]");if(pc)openProfile(pc.dataset.pid);
+};
+$("#leaders").onkeydown=e=>{
+  if(e.key!=="Enter"&&e.key!==" ")return;
+  const pc=e.target.closest("[data-pid]");if(pc){e.preventDefault();openProfile(pc.dataset.pid)}
+};
 
 function renderPeopleAdmin(){
   const lab={patron:"Patron",executive:"Executive",appointee:"Appointee"};
@@ -1030,7 +1089,7 @@ function openPerson(p,d){
   d=d||{};
   editingP=p?p.id:null;$("#personT").textContent=p?"Edit person":"Add person";
   $("#pr").value=p?.role||d.role||"executive";$("#pn").value=p?.name||"";$("#pp").value=p?.position||d.position||"";
-  $("#py").value=p?.year_label||d.year||yearsOf()[0]||"";$("#pu").value=p?.photo_url||"";$("#pf").value="";$("#personErr").textContent="";
+  $("#py").value=p?.year_label||d.year||yearsOf()[0]||"";$("#pu").value=p?.photo_url||"";$("#pb").value=p?.bio||"";$("#pa").checked=!!p?.archived;$("#pf").value="";$("#personErr").textContent="";
   $("#yrList").innerHTML=yearsOf().map(y=>`<option value="${esc(y)}">`).join("");
   showYr();open("#personO");
 }
@@ -1063,9 +1122,21 @@ $("#pSave").onclick=async()=>{
     url=sb.storage.from(CONFIG.BUCKET).getPublicUrl(path).data.publicUrl;
   }
   const row={role,name,position:$("#pp").value.trim()||(role==="patron"?"Patron":""),year_label:role==="patron"?"":year,photo_url:url};
+  const bio=$("#pb").value.trim();
+  if(bio||people.some(x=>"bio" in x))row.bio=bio;                       /* needs the leadership SQL (bio column) */
+  if(editingP){const was=people.find(x=>String(x.id)===String(editingP));if(was&&("archived" in was||$("#pa").checked))row.archived=$("#pa").checked}
+  /* a NEW person in a one-person slot (President, Secretary, Head of Appointees ...) moves the earlier holder to past executives */
+  const single=role==="executive"||(role==="appointee"&&row.position.toLowerCase()==="head of appointees");
+  const olds=!editingP&&single?people.filter(x=>x.role===role&&!x.archived&&x.year_label===row.year_label&&(x.position||"").toLowerCase()===row.position.toLowerCase()).map(x=>x.id):[];
   let error;
   if(editingP)({error}=await sb.from(CONFIG.PEOPLE).update(row).eq("id",editingP));
-  else{row.sort_order=people.reduce((m,p)=>Math.max(m,p.sort_order||0),0)+1;({error}=await sb.from(CONFIG.PEOPLE).insert(row));}
+  else{
+    row.sort_order=people.reduce((m,p)=>Math.max(m,p.sort_order||0),0)+1;({error}=await sb.from(CONFIG.PEOPLE).insert(row));
+    if(!error&&olds.length){
+      const a=await sb.from(CONFIG.PEOPLE).update({archived:true}).in("id",olds);
+      if(a.error)toast("Saved, but the earlier holder could not be moved to past executives ("+a.error.message+"). Run the leadership SQL.");
+    }
+  }
   if(error)return err("Save failed: "+error.message);
   close();toast("Person saved");load();
 };
@@ -1719,8 +1790,8 @@ $("#dlNew").onclick=async()=>{
 };
 
 /* ---- leadership slots (admin) ---- */
-const SLOTS=[["patron","Patron"],["executive","President"],["executive","Vice President"],["executive","Secretary"],["executive","Financial Controller"],["executive","Women's Commissioner"],["executive","PRO"],["executive","Organizer"],["appointee","Head of Appointees"]];
-const slotPerson=(role,pos,cur)=>people.find(x=>x.role===role&&(role==="patron"||x.year_label===cur)&&(x.position||"").toLowerCase()===pos.toLowerCase());
+const SLOTS=[["patron","Patron"],["executive","President"],["executive","Vice President"],["executive","Secretary"],["executive","Women's Commissioner"],["executive","Financial Controller"],["executive","PRO"],["executive","Organizer"],["appointee","Head of Appointees"]];
+const slotPerson=(role,pos,cur)=>people.find(x=>!x.archived&&x.role===role&&(role==="patron"||x.year_label===cur)&&(x.position||"").toLowerCase()===pos.toLowerCase());
 function renderSlots(){
   if(!session)return;
   const cur=yearsOf()[0]||"";
