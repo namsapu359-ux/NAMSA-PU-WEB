@@ -196,7 +196,7 @@ section{padding:84px 0}
 .sub{font-size:1.3rem;font-weight:800;margin:50px 0 22px;text-align:center;color:var(--deep)}
 .yrtag{display:inline-block;background:var(--mint);color:var(--emerald);border:1px solid var(--line);font-size:.85rem;padding:3px 13px;border-radius:999px;margin-left:10px;vertical-align:middle}
 .ppl{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:22px}
-.person{text-align:center;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:26px 14px 22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s;animation:rise .6s both}
+.person{text-align:center;background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:26px 14px 22px;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s;animation:rise .25s both}
 .person:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg)}
 .ph{width:130px;height:130px;border-radius:50%;margin:0 auto 14px;padding:4px;background:var(--grad);box-shadow:0 8px 20px rgba(14,116,144,.25)}
 .ph img,.ph span{width:100%;height:100%;border-radius:50%;object-fit:cover;display:grid;place-items:center;background:#fff;font-weight:800;font-size:2rem;color:var(--teal)}
@@ -429,6 +429,7 @@ textarea{resize:vertical;min-height:84px}
         <div class="acts">
           <a class="btn light" href="#leadership">Meet our leaders</a>
           <a class="btn ghost" href="#committees">Open committees</a>
+          <button type="button" class="btn ghost" id="heroPay">💳 Pay dues</button>
         </div>
         <div class="stats">
           <div><b id="stC">0</b><span>Committees</span></div>
@@ -558,6 +559,7 @@ textarea{resize:vertical;min-height:84px}
         <label for="psUrl" style="margin-top:0">Paystack payment link</label><input type="url" id="psUrl" placeholder="https://paystack.com/pay/your-page">
         <label for="psFull">Full NAMSA dues (GH₵)</label><input type="text" id="psFull" inputmode="decimal" placeholder="100">
         <label for="psMin">Minimum paid to open locked committees (GH₵)</label><input type="text" id="psMin" inputmode="decimal" placeholder="50">
+        <label for="psShirt">T-shirt price (GH₵), added when a student taps “+ T-shirt”</label><input type="text" id="psShirt" inputmode="decimal" placeholder="50">
         <div class="row"><button class="btn" id="paySave">Save payment settings</button></div>
       </div>
       <div class="panel">
@@ -713,6 +715,8 @@ textarea{resize:vertical;min-height:84px}
     <label for="payName">Full name</label><input type="text" id="payName" autocomplete="name">
     <label for="payEmail">Email address (for your receipt)</label><input type="email" id="payEmail" autocomplete="email">
     <label>Amount</label><div id="payOpts"></div>
+    <label class="chk" style="margin-top:8px"><input type="checkbox" id="payShirt"> <span id="payShirtT">➕ Add a NAMSA T-shirt</span></label>
+    <div class="hint" id="payTotal" style="margin:6px 0 0;font-weight:700"></div>
     <div class="idnote">Your student ID and name are saved with this payment, so next time you can sign in with just your student ID. They must be your own.</div>
     <div class="bad" id="payBad" hidden></div>
     <div class="err" id="payErr"></div>
@@ -796,6 +800,7 @@ const CONFIG = {
   PLATFORMS: "namsa_platforms",
   STUDENTS: "namsa_students",
   PAYMENTS: "namsa_portal_payments",
+  TSHIRTS: "namsa_portal_tshirts",
   PAYSTACK_PUBLIC_KEY: "pk_live_4aa7e7cbf8c115c107ef72f3302a25f18ff16608"   // public key: safe to be in the page. The SECRET key is never here.
 };
 CONFIG.SSO_URL=CONFIG.SUPABASE_URL+"/functions/v1/namsa-sso";   // the central sign-on service (Edge Function)
@@ -861,8 +866,8 @@ async function load(){
 const ini=n=>n.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
 const rank=p=>{const i=POSITIONS.findIndex(x=>x.toLowerCase()===(p.position||"").trim().toLowerCase());return i<0?99:i};
 const byRole=(a,b)=>(a.role===b.role?0:a.role==="executive"?-1:1)||rank(a)-rank(b)||(a.sort_order||0)-(b.sort_order||0);
-const photo=p=>{const u=safeUrl(p.photo_url);return u?`<img src="${esc(u)}" alt="${esc(p.name)}" loading="lazy">`:`<span>${esc(ini(p.name))}</span>`};
-const person=p=>`<div class="person" role="button" tabindex="0" data-pid="${esc(p.id)}" aria-label="View ${esc(p.name)}"><div class="ph">${photo(p)}</div><b>${esc(p.name)}</b><small>${esc(p.position)}</small></div>`;
+const photo=(p,eager)=>{const u=safeUrl(p.photo_url);return u?`<img src="${esc(u)}" alt="${esc(p.name)}" width="130" height="130" decoding="async" ${eager?'loading="eager" fetchpriority="high"':'loading="lazy"'}>`:`<span>${esc(ini(p.name))}</span>`};
+const person=(p,eager)=>`<div class="person" role="button" tabindex="0" data-pid="${esc(p.id)}" aria-label="View ${esc(p.name)}"><div class="ph">${photo(p,eager===true)}</div><b>${esc(p.name)}</b><small>${esc(p.position)}</small></div>`;
 const ORG="Nursing and Midwifery Students’ Association, Pentecost University (NAMSA-PU)";
 let leaderTab="appointees";
 const yearsOf=()=>[...new Set(people.filter(p=>p.role!=="patron"&&p.year_label&&!p.archived).map(p=>p.year_label))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
@@ -882,15 +887,17 @@ function renderPeople(){
   const tabs=[["appointees","Appointees",ap.length],["past","Past executives",past.length]];
   if(leaderTab==="current")leaderTab="appointees";   /* current executives already slide at the top, so they are not repeated here */
   h+=`<div class="ltabs" role="tablist">${tabs.map(([k,t,n])=>`<button type="button" role="tab" class="ltab ${leaderTab===k?"on":""}" data-ltab="${k}" aria-selected="${leaderTab===k}">${t}<span>${n}</span></button>`).join("")}</div>`;
-  if(leaderTab==="appointees"){
-    h+=ap.length?`<div class="ppl">${ap.map(person).join("")}</div>`:'<div class="empty">Appointees will appear here once they are added.</div>';
-  }else{
-    if(past.length){
-      const yrs=[...new Set(past.map(p=>p.year_label||"Earlier"))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
-      h+=`<div class="past">`+yrs.map(y=>`<div class="yrbox"><span class="yr">${esc(y)} administration</span><div class="ppl">${past.filter(p=>(p.year_label||"Earlier")===y).sort(byRole).map(person).join("")}</div></div>`).join("")+`</div>`;
-    }else h+='<div class="empty">Past executives will appear here automatically when a new administration is added.</div>';
-  }
+  const apHtml=ap.length?`<div class="ppl">${ap.map(p=>person(p,true)).join("")}</div>`:'<div class="empty">Appointees will appear here once they are added.</div>';
+  let pastHtml;
+  if(past.length){
+    const yrs=[...new Set(past.map(p=>p.year_label||"Earlier"))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+    pastHtml=`<div class="past">`+yrs.map(y=>`<div class="yrbox"><span class="yr">${esc(y)} administration</span><div class="ppl">${past.filter(p=>(p.year_label||"Earlier")===y).sort(byRole).map(p=>person(p)).join("")}</div></div>`).join("")+`</div>`;
+  }else pastHtml='<div class="empty">Past executives will appear here automatically when a new administration is added.</div>';
+  /* both lists are built once; switching tabs only shows or hides them, so it is instant */
+  h+=`<div class="lpane" data-pane="appointees" ${leaderTab==="appointees"?"":"hidden"}>${apHtml}</div><div class="lpane" data-pane="past" ${leaderTab==="past"?"":"hidden"}>${pastHtml}</div>`;
   $("#leaders").innerHTML=h;
+  const warm=()=>[...ap,...past].forEach(p=>{const u=safeUrl(p.photo_url);if(u)(new Image()).src=u});
+  (window.requestIdleCallback||setTimeout)(warm,300);
 }
 /* tapping a box shows the full picture and a few lines about the person */
 function openProfile(id){
@@ -904,7 +911,11 @@ function openProfile(id){
   open("#viewP");
 }
 $("#leaders").onclick=e=>{
-  const t=e.target.closest("[data-ltab]");if(t){leaderTab=t.dataset.ltab;renderPeople();return}
+  const t=e.target.closest("[data-ltab]");if(t){
+    leaderTab=t.dataset.ltab;
+    document.querySelectorAll("#leaders [data-ltab]").forEach(b=>{const on=b.dataset.ltab===leaderTab;b.classList.toggle("on",on);b.setAttribute("aria-selected",on)});
+    document.querySelectorAll("#leaders .lpane").forEach(x=>x.hidden=x.dataset.pane!==leaderTab);
+    return}
   const pc=e.target.closest("[data-pid]");if(pc)openProfile(pc.dataset.pid);
 };
 $("#leaders").onkeydown=e=>{
@@ -1142,8 +1153,8 @@ $("#peopleList").onclick=async e=>{
 };
 $("#pSave").onclick=async()=>{
   const err=m=>$("#personErr").textContent=m;
-  const name=$("#pn").value.trim(),role=$("#pr").value,year=$("#py").value.trim(),file=$("#pf").files[0];
-  let url=$("#pu").value.trim();
+  const name=$("#pn").value.trim(),role=$("#pr").value,year=$("#py").value.trim();
+  let file=$("#pf").files[0],url=$("#pu").value.trim();
   if(!name)return err("Enter the person's name.");
   if(role!=="patron"&&!year)return err("Enter the year of administration, e.g. 2025/2026.");
   if(url&&!safeUrl(url))return err("Photo link must start with https://");
@@ -1151,8 +1162,9 @@ $("#pSave").onclick=async()=>{
     if(!file.type.startsWith("image/"))return err("Choose an image file.");
     if(file.size>4*1024*1024)return err("Photo must be under 4 MB.");
     err("Uploading photo…");
+    file=await shrinkImage(file);
     const path=Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+(file.name.split(".").pop()||"jpg").toLowerCase();
-    const up=await sb.storage.from(CONFIG.BUCKET).upload(path,file,{contentType:file.type});
+    const up=await sb.storage.from(CONFIG.BUCKET).upload(path,file,{contentType:file.type,cacheControl:"31536000"});
     if(up.error)return err("Upload failed: "+up.error.message);
     url=sb.storage.from(CONFIG.BUCKET).getPublicUrl(path).data.publicUrl;
   }
@@ -1236,6 +1248,18 @@ function renderSlideAdmin(){
     <div class="t"><b>Picture ${i+1}</b></div>
     <div class="acts"><button class="btn red" data-sdel="${esc(x.id)}">Delete</button></div>
   </div>`).join(""):'<div class="empty">No pictures yet. Select “Upload pictures” to start the front-page slideshow.</div>';
+}
+/* shrink big photos in the browser (max 900px, JPEG) so they load fast for everyone */
+async function shrinkImage(file,max=900,q=.82){
+  try{
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type))return file;
+    const bmp=await createImageBitmap(file);
+    const k=Math.min(1,max/Math.max(bmp.width,bmp.height));
+    const c=document.createElement("canvas");c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);
+    const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(bmp,0,0,c.width,c.height);
+    const blob=await new Promise(r=>c.toBlob(r,"image/jpeg",q));
+    return blob&&blob.size<file.size?new File([blob],file.name.replace(/\.[^.]+$/,"")+".jpg",{type:"image/jpeg"}):file;
+  }catch{return file}
 }
 async function uploadImg(file,folder){
   if(!file.type.startsWith("image/"))throw new Error("Choose image files only.");
@@ -1373,6 +1397,12 @@ function showPayMessage(paid,min,full,target,idPrefill){
   if(cb)cb.onclick=()=>openClaim(idPrefill||(stu&&stu.label)||"");
 }
 
+$("#heroPay").onclick=()=>{
+  const min=num(settings.dues_min,50),full=num(settings.dues_full,100),link=safeUrl(settings.paystack_url||"");
+  if(!CONFIG.PAYSTACK_PUBLIC_KEY){if(link)window.open(link,"_blank","noopener");else toast("Please contact a NAMSA executive to pay.");return}
+  openPay((stu&&stu.label)||"",0,min,full);
+  if(stu&&stu.name)$("#payName").value=stu.name;
+};
 /* ---- pay NAMSA dues with the Paystack popup ---- */
 function loadPaystack(){
   return new Promise((res,rej)=>{
@@ -1382,6 +1412,17 @@ function loadPaystack(){
     document.head.appendChild(sc);
   });
 }
+const shirtPrice=()=>num(settings.tshirt_price,50);
+/* total = dues amount + T-shirt (only when the box is ticked); with no T-shirt the amount stays the same */
+function payTotal(){
+  const a=parseFloat((document.querySelector('input[name="payAmt"]:checked')||{}).value)||0;
+  return a+($("#payShirt").checked?shirtPrice():0);
+}
+function updatePayTotal(){
+  const t=payTotal();$("#payTotal").textContent="Total to pay: "+cedi(t);
+  $("#payGo").textContent="Pay "+cedi(t)+" with Paystack";
+}
+$("#payO").addEventListener("change",e=>{if(e.target.name==="payAmt"||e.target.id==="payShirt")updatePayTotal()});
 function openPay(idPrefill,paid,min,full){
   const pct=Math.round(min/full*100),opts=[];
   if(paid>0){
@@ -1390,7 +1431,9 @@ function openPay(idPrefill,paid,min,full){
   }else{opts.push([min,"Pay "+pct+"% ("+cedi(min)+") to report an issue"]);opts.push([full,"Pay in full ("+cedi(full)+") to open all features"])}
   if(!opts.length)opts.push([min,"Pay "+cedi(min)]);
   $("#payOpts").innerHTML=opts.map((o,i)=>`<label class="chk"><input type="radio" name="payAmt" value="${o[0]}" ${i?"":"checked"}> ${esc(o[1])}</label>`).join("");
+  $("#payShirt").checked=false;$("#payShirtT").textContent="➕ Add a NAMSA T-shirt (+"+cedi(shirtPrice())+")";
   $("#payId").value=idPrefill||"";$("#payErr").textContent="";$("#payBad").hidden=true;
+  updatePayTotal();
   close();open("#payO");setTimeout(()=>$(idPrefill?"#payName":"#payId").focus(),50);
 }
 let lastPayRef="";
@@ -1414,7 +1457,7 @@ $("#payGo").onclick=async()=>{
   const err=m=>{$("#payErr").textContent=m};
   const idLabel=$("#payId").value.trim(),id=normIdx(idLabel);
   const name=$("#payName").value.trim().replace(/\s+/g," "),email=$("#payEmail").value.trim();
-  const amt=parseFloat((document.querySelector('input[name="payAmt"]:checked')||{}).value);
+  const shirt=$("#payShirt").checked,amt=payTotal();
   if(!id)return err("Enter your student ID.");
   if(name.length<3)return err("Enter your full name.");
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return err("Enter a valid email address for your receipt.");
@@ -1425,7 +1468,7 @@ $("#payGo").onclick=async()=>{
   const ref="NAMSA"+Date.now()+Math.floor(Math.random()*1e6);let paid=false;
   PaystackPop.setup({
     key:CONFIG.PAYSTACK_PUBLIC_KEY,email,amount:Math.round(amt*100),currency:"GHS",ref,
-    metadata:{custom_fields:[{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name}]},
+    metadata:{custom_fields:[{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"T-shirt",variable_name:"tshirt",value:shirt?"yes":"no"}],tshirt:shirt},
     callback:function(resp){paid=true;finishPay((resp&&resp.reference)||ref)},
     onClose:function(){if(!paid)err("Payment window closed. If you already paid, wait a minute, then sign in with your student ID.")}
   }).openIframe();
@@ -1475,12 +1518,14 @@ function renderPayAdmin(){
   $("#psUrl").value=settings.paystack_url||"";
   $("#psFull").value=settings.dues_full||"100";
   $("#psMin").value=settings.dues_min||"50";
+  $("#psShirt").value=settings.tshirt_price||"50";
 }
 $("#paySave").onclick=async()=>{
-  const url=$("#psUrl").value.trim(),full=parseFloat($("#psFull").value),min=parseFloat($("#psMin").value);
+  const url=$("#psUrl").value.trim(),full=parseFloat($("#psFull").value),min=parseFloat($("#psMin").value),shirt=parseFloat($("#psShirt").value);
   if(url&&!safeUrl(url))return toast("The payment link must start with https://");
   if(!(full>0)||!(min>0)||min>full)return toast("Enter valid amounts. The minimum cannot be more than the full dues.");
-  const {error}=await sb.from(CONFIG.SETTINGS).upsert([{key:"paystack_url",value:url},{key:"dues_full",value:String(full)},{key:"dues_min",value:String(min)}]);
+  if(!(shirt>0))return toast("Enter the T-shirt price.");
+  const {error}=await sb.from(CONFIG.SETTINGS).upsert([{key:"paystack_url",value:url},{key:"dues_full",value:String(full)},{key:"dues_min",value:String(min)},{key:"tshirt_price",value:String(shirt)}]);
   if(error)return toast("Failed: "+error.message);
   toast("Payment settings saved");load();
 };
@@ -1853,7 +1898,12 @@ $("#dlList").onclick=async()=>{
     const aoa=[["Index Number","Name","Total Paid (GHS)","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",a,a>=min?"Can open committees":"Below minimum"]})];
     const pays=await fetchAll(CONFIG.PAYMENTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
     const pa=[["Index Number","Name","Email","Amount (GHS)","Date","Reference"],...pays.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])];
-    saveBook([["Paid list",aoa,[22,34,18,24]],["Payments",pa,[20,30,30,14,22,30]]],"NAMSA-paid-list-"+stamp()+".xlsx");
+    const sheets=[["Paid list",aoa,[22,34,18,24]],["Payments",pa,[20,30,30,14,22,30]]];
+    try{
+      const ts=await fetchAll(CONFIG.TSHIRTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
+      sheets.push(["T-shirts",[["Index Number","Name","Email","T-shirt (GHS)","Date","Reference"],...ts.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])],[20,30,30,14,22,30]]);
+    }catch{/* T-shirt table not created yet */}
+    saveBook(sheets,"NAMSA-paid-list-"+stamp()+".xlsx");
     toast("Downloaded "+rows.length+" students");
   }catch(x){toast("Failed: "+(x.message||x))}
 };
