@@ -367,6 +367,27 @@ textarea{resize:vertical;min-height:84px}
 .pvpos{color:var(--emerald);font-weight:700;margin-bottom:10px}
 .pvbio{color:var(--ink);line-height:1.6;white-space:pre-wrap;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
 
+/* hidden always wins, even on buttons */
+[hidden]{display:none!important}
+
+/* 6c. LEADERS SLIDESHOW */
+.lcar{position:relative;overflow:hidden;max-width:920px;margin:0 auto 6px;min-height:400px;border-radius:28px;background:var(--hero);color:#fff;box-shadow:var(--shadow-lg)}
+.lslide{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);transform:translateX(100%);visibility:hidden;transition:transform .9s cubic-bezier(.65,0,.35,1);cursor:pointer}
+.lslide.show{visibility:visible}
+.lph{position:relative;background:#0a3340;overflow:hidden}
+.lph img{width:100%;height:100%;object-fit:cover;object-position:center 22%;display:block}
+.lph span{position:absolute;inset:0;display:grid;place-items:center;font-size:5rem;font-weight:800;color:#6ee7b7}
+.ltxt{display:flex;flex-direction:column;justify-content:center;gap:10px;padding:34px 40px;text-align:left}
+.ltag{align-self:flex-start;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);padding:5px 16px;border-radius:999px;font-weight:700;font-size:.9rem}
+.ltxt b{font-size:clamp(1.5rem,3.4vw,2.3rem);line-height:1.15}
+.ltxt small{color:#bfe3d6;font-size:1rem}
+.ltxt em{font-style:normal;color:#7dd3fc;font-size:.88rem;margin-top:6px}
+.lnav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.88);color:var(--deep);font-size:1.6rem;line-height:1;cursor:pointer}
+.lnav.prev{left:12px}.lnav.next{right:12px}
+.ldots{position:absolute;left:0;right:0;bottom:12px;z-index:3;display:flex;gap:7px;justify-content:center}
+.ldot{width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:transparent;padding:0;cursor:pointer}.ldot.on{background:#fff}
+@media(max-width:700px){.lcar{min-height:520px}.lslide{grid-template-columns:1fr;grid-template-rows:62% 38%}.ltxt{padding:16px 22px 34px;gap:6px}.lnav{width:36px;height:36px}}
+
 /* 12. MOTION PREFERENCES */
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -436,6 +457,7 @@ textarea{resize:vertical;min-height:84px}
   <section id="leadership">
     <div class="wrap">
       <div class="sec-h"><span class="eyebrow">The people</span><h2>Our leadership</h2><p>The people who serve and have served NAMSA-PU.</p></div>
+      <div id="leadShow"></div>
       <div id="leaders"></div>
     </div>
   </section>
@@ -547,6 +569,10 @@ textarea{resize:vertical;min-height:84px}
         <div class="item">
           <div class="t"><b>Download lists (Excel)</b><small>The current list already includes payments made on the website, added to the names that were on it. The second button also shows only the NEW payments since your last download.</small></div>
           <div class="acts"><button class="btn alt" id="dlList">Download current list</button><button class="btn" id="dlNew">Download new payments + full list</button></div>
+        </div>
+        <div class="item">
+          <div class="t"><b>Online payments</b><small id="payMsg">If a payment does not show in the list, tap Sync. It pulls the latest successful Paystack payments that carry a student ID and adds the ones that are missing.</small></div>
+          <div class="acts"><button class="btn alt" id="payCheck">Check payments setup</button><button class="btn" id="paySync">Sync payments from Paystack</button></div>
         </div>
         <div class="item" style="display:block">
           <b>Add a student without a file</b>
@@ -675,6 +701,7 @@ textarea{resize:vertical;min-height:84px}
     <div class="idnote">Your student ID and name are saved with this payment, so next time you can sign in with just your student ID. They must be your own.</div>
     <div class="bad" id="payBad" hidden></div>
     <div class="err" id="payErr"></div>
+    <button type="button" class="btn alt" id="payRetry" hidden style="width:100%;margin-top:10px">Check my payment again</button>
     <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="payGo">Pay with Paystack</button></div>
   </div>
 </div>
@@ -685,7 +712,7 @@ textarea{resize:vertical;min-height:84px}
     <h3 id="cfmT">Open committee</h3>
     <p style="color:var(--muted)">You are signed in as</p>
     <p style="font-weight:800;font-size:1.1rem" id="cfmWho"></p>
-    <div class="idnote"><b>Important:</b> this is your verified student identity. It is sent securely to the committee and used for everything you submit. It cannot be changed here. If it is not you, sign out and sign in with your own email.</div>
+    <div class="idnote"><b>Important:</b> this is your verified student identity. It is sent securely to the committee and used for everything you submit. It cannot be changed here. If it is not you, sign out and sign in with your own student ID.</div>
     <div class="bad" id="cfmBad" hidden></div>
     <div class="err" id="cfmErr"></div>
     <div class="row"><button class="btn alt" data-close>Cancel</button><button class="btn" id="cfmGo">Continue</button></div>
@@ -759,7 +786,7 @@ const CONFIG = {
 CONFIG.SSO_URL=CONFIG.SUPABASE_URL+"/functions/v1/namsa-sso";   // the central sign-on service (Edge Function)
 /* ======================================================================================== */
 
-const POSITIONS=["President","Vice President","Secretary","Women's Commissioner","Financial Controller","PRO","Organizer","Head of Appointees","Appointee"];
+const POSITIONS=["President","Vice President","Secretary","Women's Commissioner","Financial Controller","PRO","Organizer","Chief Justice","Head of Appointees","Appointee"];
 const DUES_DEFAULT=new Set(["NAMSA Welfare Committee","Examination Issues Platform","Financial Committee"]);
 const DEFAULTS = [
   ["NAMSA Welfare Committee","Support, care and welfare services for every student.","🤝"],
@@ -834,8 +861,7 @@ function renderPeople(){
   const ex=live.filter(p=>p.role==="executive").sort(byRole),ap=live.filter(p=>p.role==="appointee").sort(byRole);
   const card=(p,fallback)=>`<div class="patron-card${p.role==="executive"?" pres":""}" role="button" tabindex="0" data-pid="${esc(p.id)}" aria-label="View ${esc(p.name)}"><div class="ph">${photo(p)}</div><b>${esc(p.name)}</b><span class="tag">${esc(p.position||fallback)}</span></div>`;
   let h="";
-  /* 1. Patron on top */
-  h+=people.filter(p=>p.role==="patron"&&!p.archived).map(p=>card(p,"Patron")).join("");
+  renderCarousel();   /* 1. the Patron and the current executives slide at the top, 5 seconds each */
   if(!people.length){$("#leaders").innerHTML='<div class="empty">Leadership profiles will appear here once the admin adds them.</div>';return}
   /* 2. tabs: Current executives | Appointees | Past executives */
   const tabs=[["current","Current executives",ex.length],["appointees","Appointees",ap.length],["past","Past executives",past.length]];
@@ -1355,7 +1381,9 @@ function openPay(idPrefill,paid,min,full){
   $("#payId").value=idPrefill||"";$("#payErr").textContent="";$("#payBad").hidden=true;
   close();open("#payO");setTimeout(()=>$(idPrefill?"#payName":"#payId").focus(),50);
 }
+let lastPayRef="";
 async function finishPay(ref){
+  lastPayRef=ref;$("#payRetry").hidden=true;
   $("#payErr").textContent="Confirming your payment…";
   const r=await sso("/pay/verify",{reference:ref});
   if(r.ok&&r.session){
@@ -1365,8 +1393,11 @@ async function finishPay(ref){
     return;
   }
   if(r.reason==="dues"){$("#payErr").textContent="";return showPayMessage(num(r.paid,0),num(r.min,50),num(r.full,100),"#payBad",$("#payId").value)}
-  $("#payErr").textContent=(r.error||"We could not confirm the payment yet.")+" If money was taken it is safe: wait a minute, then sign in with your student ID.";
+  const why=r.status===0?await diagnose():(r.error||"We could not confirm the payment yet.");
+  $("#payErr").textContent=why+" Your payment is safe. Tap the button below to check again, or sign in with your student ID in a minute.";
+  $("#payRetry").hidden=false;
 }
+$("#payRetry").onclick=()=>{if(lastPayRef)finishPay(lastPayRef)};
 $("#payGo").onclick=async()=>{
   const err=m=>{$("#payErr").textContent=m};
   const idLabel=$("#payId").value.trim(),id=normIdx(idLabel);
@@ -1733,6 +1764,25 @@ addEventListener("message",e=>{
   }
 });
 
+/* ---- check the Paystack connection and pull payments that are missing from the list ---- */
+$("#payCheck").onclick=async()=>{
+  const m=$("#payMsg");m.textContent="Checking…";
+  const r=await sso("/admin/pay-check",{});
+  if(r.status===0)return m.textContent=await diagnose();
+  if(!r.ok)return m.textContent=r.error||"Could not check.";
+  if(!r.secret_set)m.textContent="The secret PAYSTACK_SECRET_KEY is not set in the main Supabase (Edge Functions, Secrets). Add your NEW live secret key there, then deploy namsa-sso again.";
+  else if(!r.paystack_ok)m.textContent="Paystack did not accept the secret key ("+(r.paystack_message||"refused")+"). Put the current live secret key in PAYSTACK_SECRET_KEY and deploy namsa-sso again.";
+  else m.textContent="Paystack is connected. Among the last "+r.seen+" successful payments, "+r.with_student+" carry a student ID and "+r.missing+" are not in your list yet."+(r.missing?" Tap Sync payments from Paystack.":" Everything is already in the list.");
+};
+$("#paySync").onclick=async()=>{
+  const m=$("#payMsg");m.textContent="Syncing from Paystack…";
+  const r=await sso("/admin/reconcile",{});
+  if(r.status===0)return m.textContent=await diagnose();
+  if(!r.ok)return m.textContent=r.error||"Could not sync.";
+  m.textContent=r.added+" new payments added to the list (checked "+r.seen+" recent payments).";
+  toast(r.added+" payments added");refreshDues();
+};
+
 /* ---- download the paid list and new payments (Excel) ---- */
 async function fetchAll(table,select,orderCol){
   const rows=[];
@@ -1790,7 +1840,7 @@ $("#dlNew").onclick=async()=>{
 };
 
 /* ---- leadership slots (admin) ---- */
-const SLOTS=[["patron","Patron"],["executive","President"],["executive","Vice President"],["executive","Secretary"],["executive","Women's Commissioner"],["executive","Financial Controller"],["executive","PRO"],["executive","Organizer"],["appointee","Head of Appointees"]];
+const SLOTS=[["patron","Patron"],["executive","President"],["executive","Vice President"],["executive","Secretary"],["executive","Women's Commissioner"],["executive","Financial Controller"],["executive","PRO"],["executive","Organizer"],["executive","Chief Justice"],["appointee","Head of Appointees"]];
 const slotPerson=(role,pos,cur)=>people.find(x=>!x.archived&&x.role===role&&(role==="patron"||x.year_label===cur)&&(x.position||"").toLowerCase()===pos.toLowerCase());
 function renderSlots(){
   if(!session)return;
@@ -1803,6 +1853,63 @@ $("#slotList").addEventListener("click",e=>{
   const [role,pos]=b.dataset.slot.split("|"),cur=yearsOf()[0]||"";
   openPerson(slotPerson(role,pos,cur)||null,{role,position:pos,year:cur});
 });
+
+/* ---- leaders slideshow: Patron, President, Vice President ... Organizer, Chief Justice (5 seconds each) ---- */
+let lcSig="",lcCur=0,lcTimer=null,lcPaused=false,lcBusy=false;
+function leaderSlides(){
+  const cur=yearsOf()[0]||"";
+  return [...people.filter(p=>p.role==="patron"&&!p.archived),
+          ...people.filter(p=>!p.archived&&p.role==="executive"&&p.year_label===cur).sort(byRole)];
+}
+function renderCarousel(){
+  const box=$("#leadShow");if(!box)return;
+  const list=leaderSlides();
+  const sig=list.map(p=>[p.id,p.name,p.position,p.photo_url,p.year_label].join("|")).join(";");
+  if(sig===lcSig)return;lcSig=sig;
+  clearInterval(lcTimer);lcCur=0;lcBusy=false;
+  if(!list.length){box.innerHTML="";return}
+  const slide=(p,i)=>{const u=safeUrl(p.photo_url);return `<div class="lslide${i?"":" show"}" ${i?"":'style="transform:translateX(0)"'} role="group" aria-label="${i+1} of ${list.length}" data-pid="${esc(p.id)}" tabindex="0">
+    <div class="lph">${u?`<img src="${esc(u)}" alt="${esc(p.name)}">`:`<span>${esc(ini(p.name))}</span>`}</div>
+    <div class="ltxt"><span class="ltag">${esc(p.position||"Patron")}</span><b>${esc(p.name)}</b><small>${p.role==="patron"?"Patron of NAMSA-PU":esc((p.year_label||"")+" administration")}</small><em>Tap to read more</em></div></div>`};
+  box.innerHTML=`<div class="lcar" id="lcar" role="region" aria-roledescription="carousel" aria-label="NAMSA-PU leaders">${list.map(slide).join("")}${list.length>1?`<button type="button" class="lnav prev" aria-label="Previous leader">‹</button><button type="button" class="lnav next" aria-label="Next leader">›</button><div class="ldots">${list.map((_,i)=>`<button type="button" class="ldot${i?"":" on"}" data-dot="${i}" aria-label="Show leader ${i+1}"></button>`).join("")}</div>`:""}</div>`;
+  lcStart();
+}
+function lcStart(){clearInterval(lcTimer);if(reduced)return;lcTimer=setInterval(()=>{if(!lcPaused&&!document.hidden)lcGo(lcCur+1,1)},5000)}
+function lcDots(){document.querySelectorAll("#lcar .ldot").forEach((d,i)=>d.classList.toggle("on",i===lcCur))}
+function lcGo(n,dir){
+  const box=$("#lcar");if(!box||lcBusy)return;
+  const sl=[...box.querySelectorAll(".lslide")],len=sl.length;if(len<2)return;
+  n=(n+len)%len;if(n===lcCur)return;dir=dir||1;
+  const inc=sl[n],out=sl[lcCur];
+  if(reduced){sl.forEach(x=>{x.classList.remove("show");x.style.transform="translateX(100%)"});inc.classList.add("show");inc.style.transform="translateX(0)"}
+  else{
+    lcBusy=true;
+    inc.style.transition="none";inc.style.transform="translateX("+dir*100+"%)";inc.classList.add("show");
+    void inc.offsetWidth;                                   /* start position first, then slide */
+    inc.style.transition="";inc.style.transform="translateX(0)";
+    out.style.transform="translateX("+(-dir*100)+"%)";      /* the old slide slides off */
+    setTimeout(()=>{if(out!==inc){out.classList.remove("show");out.style.transform="translateX(100%)"}lcBusy=false},950);
+  }
+  lcCur=n;lcDots();
+}
+(function(){
+  const box=$("#leadShow");if(!box)return;
+  box.addEventListener("click",e=>{
+    const nv=e.target.closest(".lnav");if(nv){const f=nv.classList.contains("next");lcGo(lcCur+(f?1:-1),f?1:-1);lcStart();return}
+    const d=e.target.closest("[data-dot]");if(d){const k=+d.dataset.dot;lcGo(k,k>lcCur?1:-1);lcStart();return}
+    const sl=e.target.closest(".lslide");if(sl&&sl.classList.contains("show"))openProfile(sl.dataset.pid);
+  });
+  box.addEventListener("keydown",e=>{
+    if(e.key==="ArrowRight"){lcGo(lcCur+1,1);lcStart()}
+    else if(e.key==="ArrowLeft"){lcGo(lcCur-1,-1);lcStart()}
+    else if((e.key==="Enter"||e.key===" ")&&e.target.classList&&e.target.classList.contains("lslide")){e.preventDefault();openProfile(e.target.dataset.pid)}
+  });
+  box.addEventListener("mouseenter",()=>{lcPaused=true});box.addEventListener("mouseleave",()=>{lcPaused=false});
+  box.addEventListener("focusin",()=>{lcPaused=true});box.addEventListener("focusout",()=>{lcPaused=false});
+  let x0=null;
+  box.addEventListener("touchstart",e=>{x0=e.touches[0].clientX},{passive:true});
+  box.addEventListener("touchend",e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>50){const f=dx<0;lcGo(lcCur+(f?1:-1),f?1:-1);lcStart()}},{passive:true});
+})();
 
 /* ---- misc ---- */
 $("#q").oninput=render;
