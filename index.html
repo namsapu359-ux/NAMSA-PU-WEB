@@ -566,6 +566,19 @@ textarea{resize:vertical;min-height:84px}
           <div class="acts"><button class="btn red" id="duesClr">1. Delete current list</button><label class="btn">2. Upload new Excel list<input type="file" id="duesF" accept=".xlsx,.xls,.csv" hidden></label></div>
         </div>
         <div class="item" style="display:block">
+          <b>Semester</b>
+          <div class="hint" id="semNow" style="margin:6px 0">Current semester: …</div>
+          <div class="hint" style="margin-bottom:8px">“Start new semester” takes one semester’s fee (the minimum dues) off every student. Students who paid only that amount are cleared and must pay again. Students who paid in full keep the second half for the next semester.</div>
+          <div class="row"><button class="btn" id="newSem">🔄 Start new semester (refresh)</button></div>
+        </div>
+        <div class="item" style="display:block">
+          <b>Payments report</b>
+          <div class="hint" style="margin:6px 0">Who paid, how much, which semester, and a weekly summary.</div>
+          <div class="row"><button class="btn alt" id="repShow">Show report</button><button class="btn" id="repDl">Download weekly report (Excel)</button></div>
+          <div id="repCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px"></div>
+          <div id="repTable" style="overflow:auto;margin-top:12px"></div>
+        </div>
+        <div class="item" style="display:block">
           <b>Upload a class list (Excel)</b>
           <div class="hint" style="margin-bottom:4px">Choose the class first, then upload the Excel file of students who paid. They are added to that class and can sign in with their student ID straight away. Columns: Index Number, Name, Amount paid.</div>
           <label for="ucYr">Year batch (year of intake)</label><select id="ucYr"></select>
@@ -1395,7 +1408,7 @@ $("#stuGo").onclick=async()=>{
     return;
   }
   stuErr("");
-  if(r.reason==="dues")return showPayMessage(num(r.paid,0),num(r.min,50),num(r.full,100),"#stuBad",$("#stuId").value);
+  if(r.reason==="dues")return showPayMessage(num(r.paid,0),num(r.min,50),num(r.full,100),"#stuBad",$("#stuId").value,false,!!r.known);
   if(r.status===0){stuErr("Checking…");const m=await diagnose();return stuErr("Sign-in is unavailable right now. "+m)}
   stuErr(r.error||"Could not sign in. Please try again.");
 };
@@ -1413,10 +1426,10 @@ function openCommittee(c){
   $("#cfmErr").textContent="";$("#cfmBad").hidden=true;
   open("#cfmO");
 }
-function showPayMessage(paid,min,full,target,idPrefill,intro){
+function showPayMessage(paid,min,full,target,idPrefill,intro,renew){
   target=target||"#cfmBad";
   const pct=Math.round(min/full*100),link=safeUrl(settings.paystack_url||"");
-  const head=intro?`<b>Pay your NAMSA dues.</b><br>Pay ${pct}% (${cedi(min)}) to report an issue, or pay in full (${cedi(full)}) to open all features. Already paid but have no login yet? Verify your payment below and sign in.`:paid>0
+  const head=(renew&&paid<=0)?`<b>Your NAMSA dues for this semester have not been paid.</b><br>Pay ${pct}% (${cedi(min)}) for one semester, or pay in full (${cedi(full)}) to cover this semester and the next.`:intro?`<b>Pay your NAMSA dues.</b><br>Pay ${pct}% (${cedi(min)}) to report an issue, or pay in full (${cedi(full)}) to open all features. Already paid but have no login yet? Verify your payment below and sign in.`:paid>0
     ?`<b>Pay your NAMSA dues before you can sign in or visit a committee to report an issue.</b><br>You have paid ${cedi(paid)} so far, which is below the ${cedi(min)} needed. Pay ${cedi(min-paid)} more to report an issue, or ${cedi(Math.max(full-paid,0))} to complete your full dues and open all features.`
     :`<b>Pay your NAMSA dues before you can sign in or visit a committee to report an issue.</b><br>We could not find a payment for this student ID. Pay ${pct}% (${cedi(min)}) to report an issue, or pay in full (${cedi(full)}) to open all features.`;
   let tail;
@@ -1458,7 +1471,8 @@ function fillClass(p,all){
 ["pc","cc","uc","ma"].forEach(p=>fillClass(p,false));fillClass("fc",true);
 const classVals=p=>({year_batch:$("#"+p+"Yr").value,intake:$("#"+p+"In").value,program:$("#"+p+"Pr").value,program_type:$("#"+p+"Pt").value,level:$("#"+p+"Lv").value});
 const classOk=c=>!!(c.year_batch&&c.intake&&c.program&&c.program_type&&c.level);
-const semFor=a=>{const min=num(settings.dues_min,50),full=num(settings.dues_full,100);return a>=full?"Both semesters":a>=min?"First semester":"Below minimum"};
+const curSem=()=>num(settings.semester_no,1)===2?"Second semester":"First semester";
+const semFor=a=>{const min=num(settings.dues_min,50),full=num(settings.dues_full,100);return a>=full?(curSem()==="First semester"?"Both semesters":"Second semester + next semester"):a>=min?curSem():"Below minimum"};
 /* total = dues amount + T-shirt (only when the box is ticked); with no T-shirt the amount stays the same */
 function payTotal(){
   const a=parseFloat((document.querySelector('input[name="payAmt"]:checked')||{}).value)||0;
@@ -1473,9 +1487,9 @@ $("#payO").addEventListener("change",e=>{if(e.target.name==="payAmt"||e.target.i
 function openPay(idPrefill,paid,min,full){
   const pct=Math.round(min/full*100),opts=[];
   if(paid>0){
-    if(min-paid>0)opts.push([min-paid,"Pay "+cedi(min-paid)+" more: first semester"]);
-    if(full-paid>0)opts.push([full-paid,"Pay "+cedi(full-paid)+" to complete full dues: both semesters"]);
-  }else{opts.push([min,"Pay "+pct+"% ("+cedi(min)+"): first semester only"]);opts.push([full,"Pay in full ("+cedi(full)+"): both semesters"])}
+    if(min-paid>0)opts.push([min-paid,"Pay "+cedi(min-paid)+" more: "+curSem().toLowerCase()]);
+    if(full-paid>0)opts.push([full-paid,"Pay "+cedi(full-paid)+" to complete full dues: this semester and the next"]);
+  }else{opts.push([min,"Pay "+pct+"% ("+cedi(min)+"): "+curSem().toLowerCase()+" only"]);opts.push([full,"Pay in full ("+cedi(full)+"): this semester and the next"])}
   if(!opts.length)opts.push([min,"Pay "+cedi(min)]);
   $("#payOpts").innerHTML=opts.map((o,i)=>`<label class="chk"><input type="radio" name="payAmt" value="${o[0]}" ${i?"":"checked"}> ${esc(o[1])}</label>`).join("");
   $("#payShirt").checked=false;$("#payShirtSize").value="";$("#payShirtT").textContent="➕ Add a NAMSA T-shirt (+"+cedi(shirtPrice())+")";
@@ -1590,7 +1604,74 @@ $("#paySave").onclick=async()=>{
   if(error)return toast("Failed: "+error.message);
   toast("Payment settings saved");load();
 };
+function renderSemester(){
+  const el=$("#semNow");if(!el)return;
+  const cur=num(settings.semester_no,1),nx=cur===1?"Second":"First";
+  el.innerHTML="Current semester: <b>"+(cur===2?"Second":"First")+" semester"+(settings.academic_year?" ("+esc(settings.academic_year)+")":"")+"</b>. The next refresh starts the <b>"+nx+" semester</b>.";
+}
+$("#newSem").onclick=async()=>{
+  const cur=num(settings.semester_no,1),nx=cur===1?2:1,fee=num(settings.dues_min,50);
+  if(!confirm("Start the "+(nx===1?"FIRST":"SECOND")+" semester now?\n\n• Students who paid only "+cedi(fee)+" are cleared and must pay again.\n• Students who paid "+cedi(num(settings.dues_full,100))+" keep "+cedi(fee)+" for this new semester.\n\nThis cannot be undone."))return;
+  let year="";
+  if(nx===1){year=prompt("Academic year for the new session (for example 2026/2027):",settings.academic_year||"");if(year===null)return;year=year.trim()}
+  toast("Starting the new semester…");
+  const r=await sso("/admin/new-semester",{academic_year:year});
+  if(r.status===0)return toast(await diagnose());
+  if(!r.ok)return toast(r.error||"Could not start the new semester.");
+  settings.semester_no=String(r.semester_no);if(r.academic_year)settings.academic_year=r.academic_year;
+  renderSemester();
+  toast((r.semester_no===1?"First":"Second")+" semester started: "+r.cleared+" students cleared, "+r.carried+" carried over");
+  refreshDues();
+};
+/* ---- payments report ---- */
+let repRows=[];
+async function reportData(){
+  let pays;
+  try{pays=await fetchAll(CONFIG.PAYMENTS,"reference,index_number,student_name,email,amount,paid_at,semester_no,academic_year,covers","paid_at")}
+  catch{pays=await fetchAll(CONFIG.PAYMENTS,"reference,index_number,student_name,email,amount,paid_at","paid_at")}
+  const sh=new Map();
+  try{(await fetchAll(CONFIG.TSHIRTS,"reference,amount,size","paid_at")).forEach(x=>sh.set(x.reference,x))}catch{}
+  return pays.map(r=>{const dues=Number(r.amount)||0,t=sh.get(r.reference),shirt=t?Number(t.amount)||0:0;return{...r,dues,shirt,total:dues+shirt,size:t?t.size||"":"",d:new Date(r.paid_at)}});
+}
+const weekStart=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
+const dkey=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function weekly(rows){
+  const m=new Map();
+  for(const r of rows){
+    const k=dkey(weekStart(r.d));
+    const w=m.get(k)||{k,ids:new Set(),n:0,total:0,dues:0,shirt:0,s1:0,s2:0};
+    w.ids.add(r.index_number);w.n++;w.total+=r.total;w.dues+=r.dues;w.shirt+=r.shirt;
+    if(Number(r.semester_no)===1)w.s1++;else if(Number(r.semester_no)===2)w.s2++;
+    m.set(k,w);
+  }
+  return [...m.values()].sort((a,b)=>b.k.localeCompare(a.k));
+}
+const covers=r=>r.covers||(Number(r.semester_no)===1?"First semester":Number(r.semester_no)===2?"Second semester":"Not recorded");
+$("#repShow").onclick=async()=>{
+  try{
+    toast("Building the report…");
+    repRows=await reportData();
+    const ids=new Set(repRows.map(r=>r.index_number)),tot=repRows.reduce((a,r)=>a+r.total,0),du=repRows.reduce((a,r)=>a+r.dues,0),sh=repRows.reduce((a,r)=>a+r.shirt,0);
+    const wk=weekly(repRows),thisK=dkey(weekStart(new Date())),tw=wk.find(w=>w.k===thisK)||{ids:new Set(),total:0};
+    const cs=num(settings.semester_no,1),inSem=new Set(repRows.filter(r=>Number(r.semester_no)===cs&&(!settings.academic_year||!r.academic_year||r.academic_year===settings.academic_year)).map(r=>r.index_number)).size;
+    const card=(l,v)=>`<div style="border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff"><div class="hint" style="margin:0">${l}</div><div style="font-weight:800;font-size:1.15rem;margin-top:4px">${v}</div></div>`;
+    $("#repCards").innerHTML=card("People who paid",ids.size)+card("Total received",cedi(tot))+card("Dues",cedi(du))+card("T-shirts",cedi(sh))+card("This week",tw.ids.size+" people · "+cedi(tw.total))+card(curSem()+" payers",inSem);
+    $("#repTable").innerHTML=wk.length?`<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr>${["Week starting","People","Payments","Total","Dues","T-shirts","1st sem","2nd sem"].map(h=>`<th style="text-align:left;padding:8px;border-bottom:2px solid var(--line)">${h}</th>`).join("")}</tr></thead><tbody>${wk.map(w=>`<tr>${[w.k,w.ids.size,w.n,cedi(w.total),cedi(w.dues),cedi(w.shirt),w.s1,w.s2].map(c=>`<td style="padding:8px;border-bottom:1px solid var(--line)">${esc(String(c))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:'<div class="hint">No payments yet.</div>';
+    toast("Report ready");
+  }catch(x){toast("Failed: "+x.message)}
+};
+$("#repDl").onclick=async()=>{
+  try{
+    if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
+    toast("Preparing the report…");
+    const rows=await reportData(),wk=weekly(rows);
+    const w=[["Week starting","People who paid","Payments","Total received (GHS)","Dues (GHS)","T-shirts (GHS)","First semester payments","Second semester payments"],...wk.map(x=>[x.k,x.ids.size,x.n,x.total,x.dues,x.shirt,x.s1,x.s2])];
+    const pa=[["Date","Name","Student ID","Email","Total (GHS)","Dues (GHS)","T-shirt (GHS)","T-shirt size","Semester paid for","Academic year","Reference"],...rows.slice().reverse().map(r=>[r.d.toLocaleString(),r.student_name||"",r.index_number,r.email||"",r.total,r.dues,r.shirt,r.size,covers(r),r.academic_year||"",r.reference])];
+    saveBook([["Weekly report",w,[16,16,12,20,14,14,22,24]],["All payments",pa,[22,28,20,28,14,14,14,12,26,14,28]]],"NAMSA-weekly-report-"+stamp()+".xlsx");
+  }catch(x){toast("Failed: "+x.message)}
+};
 async function refreshDues(){
+  renderSemester();
   if(!sb||!session)return;
   const min=num(settings.dues_min,50);
   const a=await sb.from(CONFIG.DUES).select("index_number",{count:"exact",head:true});
@@ -1674,8 +1755,9 @@ async function classRows(){
 $("#classShow").onclick=async()=>{
   try{
     const {rows}=await classRows();
-    const first=rows.filter(r=>semFor(Number(r.amount_paid)||0)==="First semester").length,both=rows.filter(r=>semFor(Number(r.amount_paid)||0)==="Both semesters").length;
-    $("#classCount").textContent=rows.length+" students: "+first+" paid first semester only, "+both+" paid both semesters.";
+    const mn=num(settings.dues_min,50),fl=num(settings.dues_full,100);
+    const one=rows.filter(r=>{const a=Number(r.amount_paid)||0;return a>=mn&&a<fl}).length,two=rows.filter(r=>(Number(r.amount_paid)||0)>=fl).length;
+    $("#classCount").textContent=rows.length+" students: "+one+" paid for this semester only, "+two+" paid for this and the next semester.";
   }catch(x){toast("Failed: "+x.message)}
 };
 $("#classDl").onclick=async()=>{
