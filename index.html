@@ -389,10 +389,7 @@ textarea{resize:vertical;min-height:84px}
 @media(max-width:700px){.lcar{min-height:520px}.lslide{grid-template-columns:1fr;grid-template-rows:62% 38%}.ltxt{padding:16px 22px 34px;gap:6px}.lnav{width:36px;height:36px}}
 
 /* 12. MOTION PREFERENCES */
-@media(prefers-reduced-motion:reduce){
-  html{scroll-behavior:auto}
-  *,*::before,*::after{animation:none!important;transition:none!important}
-}
+/* Many laptops have the system "reduce motion / show animations" setting switched off, which used to freeze the background pictures, logo and leaders slider. They now always move. */
 </style>
 </head>
 <body>
@@ -608,6 +605,7 @@ textarea{resize:vertical;min-height:84px}
             <input type="text" id="mIdx" placeholder="Index number" autocomplete="off" aria-label="Index number">
             <input type="text" id="mName" placeholder="Name (optional)" autocomplete="off" aria-label="Student name">
             <input type="text" id="mAmt" inputmode="decimal" placeholder="Amount paid (GH₵)" aria-label="Amount paid" style="min-width:150px">
+            <select id="mShirt" aria-label="T-shirt" style="min-width:170px"><option value="no">T-shirt: not paid</option><option value="yes">T-shirt: paid</option></select>
             <button class="btn" id="mAdd">Add student</button>
           </div>
         </div>
@@ -1245,7 +1243,7 @@ $("#vBack").onclick=()=>{
 window.addEventListener("hashchange",()=>{if(location.hash!=="#viewer")closeViewer()});
 
 /* ---- branding, front-page pictures, vitals ---- */
-const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduced=false;   /* always animate, even when the laptop has system animations turned off */
 function renderBrand(){
   const u=safeUrl(settings.logo_url||""),img=c=>`<img src="${esc(u)}" alt="NAMSA-PU logo" class="${c}">`;
   $("#hLogo").innerHTML=u?img(""):"🎓";$("#hLogo").classList.toggle("img",!!u);
@@ -1483,22 +1481,29 @@ function openPay(idPrefill,paid,min,full){
   close();open("#payO");setTimeout(()=>$(idPrefill?"#payName":"#payId").focus(),50);
 }
 let lastPayRef="";
-async function finishPay(ref){
-  lastPayRef=ref;$("#payRetry").hidden=true;
-  $("#payErr").textContent="Confirming your payment…";
+const clearPayRef=()=>{try{localStorage.removeItem("namsa_pay_ref")}catch{}};
+async function finishPay(ref,n=0,silent=false){
+  lastPayRef=ref;
+  if(!silent){$("#payRetry").hidden=true;$("#payErr").textContent=n?"Still confirming your payment… ("+n+")":"Confirming your payment…"}
   const r=await sso("/pay/verify",{reference:ref});
   if(r.ok&&r.session){
+    clearPayRef();
     startStudent(r.session,r.student);close();
     toast("Payment received ("+semFor(num(r.paid,0))+"). Welcome, "+(stu.name||stu.label));
     const c=pendingC;pendingC=null;if(c)openCommittee(c);
-    return;
+    return true;
   }
+  if(silent)return false;
   if(r.reason==="dues"){$("#payErr").textContent="";return showPayMessage(num(r.paid,0),num(r.min,50),num(r.full,100),"#payBad",$("#payId").value)}
+  /* Paystack can take a few seconds to confirm: try again by itself before asking the student to tap anything */
+  if((r.status===0||r.reason==="not_paid"||r.reason==="paystack")&&n<5){setTimeout(()=>finishPay(ref,n+1),3000);return false}
   const why=r.status===0?await diagnose():(r.error||"We could not confirm the payment yet.");
   $("#payErr").textContent=why+" Your payment is safe. Tap the button below to check again, or sign in with your student ID in a minute.";
   $("#payRetry").hidden=false;
 }
 $("#payRetry").onclick=()=>{if(lastPayRef)finishPay(lastPayRef)};
+/* if the page was closed or reloaded right after paying, sign the student in automatically */
+setTimeout(()=>{try{const pr=localStorage.getItem("namsa_pay_ref");if(pr){localStorage.removeItem("namsa_pay_ref");finishPay(pr,0,true)}}catch{}},1500);
 $("#payGo").onclick=async()=>{
   const err=m=>{$("#payErr").textContent=m};
   const idLabel=$("#payId").value.trim(),id=normIdx(idLabel);
@@ -1513,11 +1518,12 @@ $("#payGo").onclick=async()=>{
   try{await loadPaystack()}catch(e){return err(e.message)}
   err("");
   const ref="NAMSA"+Date.now()+Math.floor(Math.random()*1e6);let paid=false;
+  try{localStorage.setItem("namsa_pay_ref",ref)}catch{}
   PaystackPop.setup({
     key:CONFIG.PAYSTACK_PUBLIC_KEY,email,amount:Math.round(amt*100),currency:"GHS",ref,
     metadata:{custom_fields:[{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"T-shirt",variable_name:"tshirt",value:shirt?"yes":"no"},{display_name:"Batch",variable_name:"year_batch",value:cv.year_batch},{display_name:"Intake",variable_name:"intake",value:cv.intake},{display_name:"Program",variable_name:"program",value:cv.program},{display_name:"Program type",variable_name:"program_type",value:cv.program_type},{display_name:"Level",variable_name:"level",value:cv.level}],tshirt:shirt},
     callback:function(resp){paid=true;finishPay((resp&&resp.reference)||ref)},
-    onClose:function(){if(!paid)err("Payment window closed. If you already paid, wait a minute, then sign in with your student ID.")}
+    onClose:function(){if(!paid){err("Checking whether your payment went through…");finishPay(ref,0,true).then(ok=>{if(!ok)err("Payment window closed. If you already paid, wait a minute, then sign in with your student ID.")})}}
   }).openIframe();
 };
 
@@ -1617,14 +1623,16 @@ async function importDues(f,cls){
     const start=hr>=0?hr+1:0;
     const ai=hr>=0?findCol(head,[/amount.?paid|paid.?amount/,/^amount/,/amount|paid/],ci):-1;
     const ni=hr>=0?findCol(head,[/name/],ci):-1;
+    const ti=hr>=0?findCol(head,[/t.?shirt|shirt/],ci):-1;
     const full=num(settings.dues_full,100),min=num(settings.dues_min,50);
     const map=new Map();
     for(const r of rows.slice(start)){
       if(!looksId(r[ci]))continue;      /* skips serial numbers, totals and blank lines */
       const k=normIdx(r[ci]);
       const amt=ai>=0?num(String(r[ai]).replace(/[^0-9.\-]/g,""),0):full;
-      const cur=map.get(k)||{name:"",amt:0};
+      const cur=map.get(k)||{name:"",amt:0,shirt:false};
       cur.amt+=amt;if(ni>=0&&String(r[ni]).trim())cur.name=String(r[ni]).trim();
+      if(ti>=0&&/^(y|yes|paid|true|1|x|✓|✔)/i.test(String(r[ti]).trim()))cur.shirt=true;
       map.set(k,cur);
     }
     if(!map.size)throw new Error("No index numbers found. Add a column headed Index Number.");
@@ -1637,7 +1645,9 @@ async function importDues(f,cls){
       const u=await sb.from(CONFIG.DUES).upsert(all.slice(i,i+500));
       if(u.error)throw u.error;
     }
-    toast("Saved "+all.length+" students");
+    const shirts=[...map].filter(([,v])=>v.shirt).map(([k,v])=>[k,v.name]);
+    const sErr=shirts.length?await saveShirts(shirts,true):"";
+    toast("Saved "+all.length+" students"+(shirts.length?", "+shirts.length+" with T-shirt":"")+(sErr?" (T-shirts not saved: "+sErr+")":""));
     refreshDues();
   }catch(x){toast(x.message==="Cancelled."?"Upload cancelled":"Failed: "+x.message)}
 }
@@ -1666,8 +1676,9 @@ $("#classDl").onclick=async()=>{
     if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
     const {c,rows}=await classRows();
     if(!rows.length)return toast("No students in that class yet.");
-    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a)]})];
-    saveBook([["Class list",aoa,[22,34,12,12,12,14,8,16,18]]],"NAMSA-class-"+[c.year_batch||"all",c.intake||"all",c.program||"all",c.program_type||"all","L"+(c.level||"all")].join("-")+"-"+stamp()+".xlsx");
+    const sh=await shirtSet();
+    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid"]})];
+    saveBook([["Class list",aoa,[22,34,12,12,12,14,8,16,18,12]]],"NAMSA-class-"+[c.year_batch||"all",c.intake||"all",c.program||"all",c.program_type||"all","L"+(c.level||"all")].join("-")+"-"+stamp()+".xlsx");
   }catch(x){toast("Failed: "+x.message)}
 };
 $("#duesClr").onclick=async()=>{
@@ -1676,6 +1687,21 @@ $("#duesClr").onclick=async()=>{
   if(error)return toast("Failed: "+error.message);
   toast("Dues list deleted. You can now upload the new list.");refreshDues();
 };
+/* records (or clears) a manually added T-shirt payment; students who paid for a T-shirt online keep theirs */
+async function saveShirts(pairs,paid){
+  if(!pairs.length)return "";
+  if(paid){
+    const now=new Date().toISOString(),price=shirtPrice();
+    for(let i=0;i<pairs.length;i+=500){
+      const {error}=await sb.from(CONFIG.TSHIRTS).upsert(pairs.slice(i,i+500).map(([k,n])=>({reference:"ADMIN-"+k,index_number:k,student_name:n||null,amount:price,paid_at:now})),{onConflict:"reference"});
+      if(error)return error.message;
+    }
+  }else{
+    const {error}=await sb.from(CONFIG.TSHIRTS).delete().in("reference",pairs.map(([k])=>"ADMIN-"+k));
+    if(error&&!/does not exist|relation/i.test(error.message))return error.message;
+  }
+  return "";
+}
 $("#mAdd").onclick=async()=>{
   const ids=$("#mIdx").value.split(/[,;\n]+/).map(normIdx).filter(Boolean);
   if(!ids.length)return toast("Enter an index number");
@@ -1688,8 +1714,9 @@ $("#mAdd").onclick=async()=>{
   const rows=ids.map(k=>name?{index_number:k,student_name:name,amount_paid:amt,...cv}:{index_number:k,amount_paid:amt,...cv});
   const {error}=await sb.from(CONFIG.DUES).upsert(rows);
   if(error)return toast("Failed: "+error.message);
-  toast(ids.length+(ids.length>1?" students":" student")+" saved with "+cedi(amt));
-  $("#mIdx").value="";$("#mName").value="";$("#mAmt").value="";refreshDues();
+  const sErr=await saveShirts(ids.map(k=>[k,name]),$("#mShirt").value==="yes");
+  toast(ids.length+(ids.length>1?" students":" student")+" saved with "+cedi(amt)+($("#mShirt").value==="yes"?", T-shirt paid":"")+(sErr?" (T-shirt not saved: "+sErr+")":""));
+  $("#mIdx").value="";$("#mName").value="";$("#mAmt").value="";$("#mShirt").value="no";refreshDues();
 };
 $("#duesQb").onclick=async()=>{
   const k=normIdx($("#duesQ").value);if(!k)return;
@@ -1984,16 +2011,18 @@ function saveBook(sheets,name){
   XLSX.writeFile(wb,name);
 }
 const stamp=()=>new Date().toISOString().slice(0,10);
+async function shirtSet(){try{const t=await fetchAll(CONFIG.TSHIRTS,"index_number","index_number");return new Set(t.map(x=>x.index_number))}catch{return new Set()}}
 async function loadList(){return await fetchAll(CONFIG.DUES,"index_number,student_name,amount_paid,year_batch,intake,program,program_type,level","index_number")}
 $("#dlList").onclick=async()=>{
   try{
     if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
     toast("Preparing the list…");
     const min=num(settings.dues_min,50),rows=await loadList();
-    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),a>=min?"Can open committees":"Below minimum"]})];
+    const sh=await shirtSet();
+    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid",a>=min?"Can open committees":"Below minimum"]})];
     const pays=await fetchAll(CONFIG.PAYMENTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
     const pa=[["Index Number","Name","Email","Amount (GHS)","Date","Reference"],...pays.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])];
-    const sheets=[["Paid list",aoa,[22,34,12,12,12,14,8,16,18,22]],["Payments",pa,[20,30,30,14,22,30]]];
+    const sheets=[["Paid list",aoa,[22,34,12,12,12,14,8,16,18,12,22]],["Payments",pa,[20,30,30,14,22,30]]];
     try{
       const ts=await fetchAll(CONFIG.TSHIRTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
       sheets.push(["T-shirts",[["Index Number","Name","Email","T-shirt (GHS)","Date","Reference"],...ts.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])],[20,30,30,14,22,30]]);
