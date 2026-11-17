@@ -492,7 +492,7 @@ textarea{resize:vertical;min-height:84px}
     <div id="contact"><h4>Contact us</h4><a href="mailto:namsapu359@gmail.com">✉ namsapu359@gmail.com</a><a href="tel:+233209684674">📞 0209684674</a></div>
     <div><a href="#" id="fAdmin" aria-label="Admin login" title="Admin login" style="display:inline-block;font-size:1.6rem;line-height:1;padding:6px 12px">.</a></div>
   </div>
-  <div class="wrap copy">© <span id="yr"></span> NAMSA-PU. All rights reserved.</div>
+  <div class="wrap copy">© <span id="yr"></span> NAMSA-PU. All rights reserved.<br>This website was created and developed by <b>Anim Emmanuel</b> · <a href="tel:+233209684674" style="color:inherit">📞 0209684674</a></div>
 </footer>
 
 <!-- Admin panel -->
@@ -568,6 +568,26 @@ textarea{resize:vertical;min-height:84px}
           <div class="t"><b id="duesCount">Checking list…</b><small>Step 1: delete the old list. Step 2: upload the new Excel file.</small></div>
           <div class="acts"><button class="btn red" id="duesClr">1. Delete current list</button><label class="btn">2. Upload new Excel list<input type="file" id="duesF" accept=".xlsx,.xls,.csv" hidden></label></div>
         </div>
+        <div class="item" style="display:block">
+          <b>Upload a class list (Excel)</b>
+          <div class="hint" style="margin-bottom:4px">Choose the class first, then upload the Excel file of students who paid. They are added to that class and can sign in with their student ID straight away. Columns: Index Number, Name, Amount paid.</div>
+          <label for="ucYr">Year batch (year of intake)</label><select id="ucYr"></select>
+    <label for="ucIn">Intake (January or September)</label><select id="ucIn"></select>
+    <label for="ucPr">Program (Regular, Access or Top-up)</label><select id="ucPr"></select>
+    <label for="ucPt">Program type (Nursing or Midwifery)</label><select id="ucPt"></select>
+    <label for="ucLv">Current level</label><select id="ucLv"></select>
+    <div class="row"><label class="btn">Upload class Excel<input type="file" id="classF" accept=".xlsx,.xls,.csv" hidden></label></div>
+        </div>
+        <div class="item" style="display:block">
+          <b>View or download a class list</b>
+          <label for="fcYr">Year batch (year of intake)</label><select id="fcYr"></select>
+    <label for="fcIn">Intake (January or September)</label><select id="fcIn"></select>
+    <label for="fcPr">Program (Regular, Access or Top-up)</label><select id="fcPr"></select>
+    <label for="fcPt">Program type (Nursing or Midwifery)</label><select id="fcPt"></select>
+    <label for="fcLv">Current level</label><select id="fcLv"></select>
+    <div class="hint" id="classCount" style="margin:8px 0">Choose a class (or leave “All”), then tap Show.</div>
+          <div class="row"><button class="btn alt" id="classShow">Show count</button><button class="btn" id="classDl">Download class list</button></div>
+        </div>
         <div class="item">
           <div class="t"><b>Download lists (Excel)</b><small>The current list already includes payments made on the website, added to the names that were on it. The second button also shows only the NEW payments since your last download.</small></div>
           <div class="acts"><button class="btn alt" id="dlList">Download current list</button><button class="btn" id="dlNew">Download new payments + full list</button></div>
@@ -579,7 +599,12 @@ textarea{resize:vertical;min-height:84px}
         <div class="item" style="display:block">
           <b>Add a student without a file</b>
           <div class="hint" style="margin-bottom:8px">Type an index number (or several separated by commas) and the amount paid. A student already on the list gets their amount replaced. Leave the amount empty to use the full dues.</div>
-          <div class="lrow" style="margin-top:0">
+          <label for="maYr">Year batch (year of intake)</label><select id="maYr"></select>
+          <label for="maIn">Intake (January or September)</label><select id="maIn"></select>
+          <label for="maPr">Program (Regular, Access or Top-up)</label><select id="maPr"></select>
+          <label for="maPt">Program type (Nursing or Midwifery)</label><select id="maPt"></select>
+          <label for="maLv">Current level</label><select id="maLv"></select>
+          <div class="lrow" style="margin-top:10px">
             <input type="text" id="mIdx" placeholder="Index number" autocomplete="off" aria-label="Index number">
             <input type="text" id="mName" placeholder="Name (optional)" autocomplete="off" aria-label="Student name">
             <input type="text" id="mAmt" inputmode="decimal" placeholder="Amount paid (GH₵)" aria-label="Amount paid" style="min-width:150px">
@@ -697,8 +722,13 @@ textarea{resize:vertical;min-height:84px}
   <div class="modal" role="dialog" aria-label="Verify my payment">
     <h3>✅ I have already paid</h3>
     <p class="hint" style="margin-bottom:4px">If you already paid your NAMSA dues, enter your name and student ID. We check the payment with Paystack, add you to the paid list and sign you in.</p>
-    <label for="clId">Student ID (index number)</label><input type="text" id="clId" autocomplete="off">
+    <label for="ccYr">Year batch (year of intake)</label><select id="ccYr"></select>
+    <label for="ccIn">Intake (January or September)</label><select id="ccIn"></select>
+    <label for="ccPr">Program (Regular, Access or Top-up)</label><select id="ccPr"></select>
+    <label for="ccPt">Program type (Nursing or Midwifery)</label><select id="ccPt"></select>
+    <label for="ccLv">Current level</label><select id="ccLv"></select>
     <label for="clName">Full name</label><input type="text" id="clName" autocomplete="name">
+    <label for="clId">Student ID (index number)</label><input type="text" id="clId" autocomplete="off">
     <label for="clRef">Payment reference (from your Paystack receipt or SMS/email)</label><input type="text" id="clRef" autocomplete="off" placeholder="Optional if you typed your student ID when paying">
     <div class="idnote">Use your own student ID and name. Your payment is checked directly with Paystack.</div>
     <div class="err" id="clErr"></div>
@@ -711,8 +741,13 @@ textarea{resize:vertical;min-height:84px}
   <div class="modal" role="dialog" aria-label="Pay NAMSA dues">
     <h3>💳 Pay NAMSA dues</h3>
     <p class="hint" id="payHint" style="margin-bottom:4px">Pay with mobile money or card. After you pay you are signed in automatically.</p>
-    <label for="payId">Student ID (index number)</label><input type="text" id="payId" autocomplete="off">
+    <label for="pcYr">Year batch (year of intake)</label><select id="pcYr"></select>
+    <label for="pcIn">Intake (January or September)</label><select id="pcIn"></select>
+    <label for="pcPr">Program (Regular, Access or Top-up)</label><select id="pcPr"></select>
+    <label for="pcPt">Program type (Nursing or Midwifery)</label><select id="pcPt"></select>
+    <label for="pcLv">Current level</label><select id="pcLv"></select>
     <label for="payName">Full name</label><input type="text" id="payName" autocomplete="name">
+    <label for="payId">Student ID (index number)</label><input type="text" id="payId" autocomplete="off">
     <label for="payEmail">Email address (for your receipt)</label><input type="email" id="payEmail" autocomplete="email">
     <label>Amount</label><div id="payOpts"></div>
     <label class="chk" style="margin-top:8px"><input type="checkbox" id="payShirt"> <span id="payShirtT">➕ Add a NAMSA T-shirt</span></label>
@@ -1414,6 +1449,16 @@ function loadPaystack(){
   });
 }
 const shirtPrice=()=>num(settings.tshirt_price,50);
+/* ---- class details: year batch, intake, program, level ---- */
+const YEARS=["2023","2024","2025","2026","2027","2028","2029","2030"],INTAKES=["January","September"],PROGRAMS=["Regular","Access","Top-up"],PTYPES=["Nursing","Midwifery"],LEVELS=["100","200","300","400"];
+function fillClass(p,all){
+  const mk=(id,label,arr)=>{const el=$("#"+p+id);if(el)el.innerHTML=`<option value="">${all?"All":"Select "+label}</option>`+arr.map(v=>`<option>${esc(v)}</option>`).join("")};
+  mk("Yr","year batch",YEARS);mk("In","intake",INTAKES);mk("Pr","program",PROGRAMS);mk("Pt","program type",PTYPES);mk("Lv","level",LEVELS);
+}
+["pc","cc","uc","ma"].forEach(p=>fillClass(p,false));fillClass("fc",true);
+const classVals=p=>({year_batch:$("#"+p+"Yr").value,intake:$("#"+p+"In").value,program:$("#"+p+"Pr").value,program_type:$("#"+p+"Pt").value,level:$("#"+p+"Lv").value});
+const classOk=c=>!!(c.year_batch&&c.intake&&c.program&&c.program_type&&c.level);
+const semFor=a=>{const min=num(settings.dues_min,50),full=num(settings.dues_full,100);return a>=full?"Both semesters":a>=min?"First semester":"Below minimum"};
 /* total = dues amount + T-shirt (only when the box is ticked); with no T-shirt the amount stays the same */
 function payTotal(){
   const a=parseFloat((document.querySelector('input[name="payAmt"]:checked')||{}).value)||0;
@@ -1427,9 +1472,9 @@ $("#payO").addEventListener("change",e=>{if(e.target.name==="payAmt"||e.target.i
 function openPay(idPrefill,paid,min,full){
   const pct=Math.round(min/full*100),opts=[];
   if(paid>0){
-    if(min-paid>0)opts.push([min-paid,"Pay "+cedi(min-paid)+" more to report an issue"]);
-    if(full-paid>0)opts.push([full-paid,"Pay "+cedi(full-paid)+" to complete full dues"]);
-  }else{opts.push([min,"Pay "+pct+"% ("+cedi(min)+") to report an issue"]);opts.push([full,"Pay in full ("+cedi(full)+") to open all features"])}
+    if(min-paid>0)opts.push([min-paid,"Pay "+cedi(min-paid)+" more: first semester"]);
+    if(full-paid>0)opts.push([full-paid,"Pay "+cedi(full-paid)+" to complete full dues: both semesters"]);
+  }else{opts.push([min,"Pay "+pct+"% ("+cedi(min)+"): first semester only"]);opts.push([full,"Pay in full ("+cedi(full)+"): both semesters"])}
   if(!opts.length)opts.push([min,"Pay "+cedi(min)]);
   $("#payOpts").innerHTML=opts.map((o,i)=>`<label class="chk"><input type="radio" name="payAmt" value="${o[0]}" ${i?"":"checked"}> ${esc(o[1])}</label>`).join("");
   $("#payShirt").checked=false;$("#payShirtT").textContent="➕ Add a NAMSA T-shirt (+"+cedi(shirtPrice())+")";
@@ -1444,7 +1489,7 @@ async function finishPay(ref){
   const r=await sso("/pay/verify",{reference:ref});
   if(r.ok&&r.session){
     startStudent(r.session,r.student);close();
-    toast("Payment received. Welcome, "+(stu.name||stu.label));
+    toast("Payment received ("+semFor(num(r.paid,0))+"). Welcome, "+(stu.name||stu.label));
     const c=pendingC;pendingC=null;if(c)openCommittee(c);
     return;
   }
@@ -1458,9 +1503,10 @@ $("#payGo").onclick=async()=>{
   const err=m=>{$("#payErr").textContent=m};
   const idLabel=$("#payId").value.trim(),id=normIdx(idLabel);
   const name=$("#payName").value.trim().replace(/\s+/g," "),email=$("#payEmail").value.trim();
-  const shirt=$("#payShirt").checked,amt=payTotal();
-  if(!id)return err("Enter your student ID.");
+  const shirt=$("#payShirt").checked,amt=payTotal(),cv=classVals("pc");
+  if(!classOk(cv))return err("Choose your year batch, intake, program, program type and current level.");
   if(name.length<3)return err("Enter your full name.");
+  if(!id)return err("Enter your student ID.");
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return err("Enter a valid email address for your receipt.");
   if(!isFinite(amt)||amt<=0)return err("Choose an amount.");
   if(!CONFIG.PAYSTACK_PUBLIC_KEY)return err("Online payment is not set up yet.");
@@ -1469,7 +1515,7 @@ $("#payGo").onclick=async()=>{
   const ref="NAMSA"+Date.now()+Math.floor(Math.random()*1e6);let paid=false;
   PaystackPop.setup({
     key:CONFIG.PAYSTACK_PUBLIC_KEY,email,amount:Math.round(amt*100),currency:"GHS",ref,
-    metadata:{custom_fields:[{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"T-shirt",variable_name:"tshirt",value:shirt?"yes":"no"}],tshirt:shirt},
+    metadata:{custom_fields:[{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"T-shirt",variable_name:"tshirt",value:shirt?"yes":"no"},{display_name:"Batch",variable_name:"year_batch",value:cv.year_batch},{display_name:"Intake",variable_name:"intake",value:cv.intake},{display_name:"Program",variable_name:"program",value:cv.program},{display_name:"Program type",variable_name:"program_type",value:cv.program_type},{display_name:"Level",variable_name:"level",value:cv.level}],tshirt:shirt},
     callback:function(resp){paid=true;finishPay((resp&&resp.reference)||ref)},
     onClose:function(){if(!paid)err("Payment window closed. If you already paid, wait a minute, then sign in with your student ID.")}
   }).openIframe();
@@ -1485,10 +1531,12 @@ $("#clGo").onclick=async()=>{
   const err=m=>{$("#clErr").textContent=m};
   const idLabel=$("#clId").value.trim(),id=normIdx(idLabel);
   const name=$("#clName").value.trim().replace(/\s+/g," "),ref=$("#clRef").value.trim();
-  if(!id)return err("Enter your student ID.");
+  const cv=classVals("cc");
+  if(!classOk(cv))return err("Choose your year batch, intake, program, program type and current level.");
   if(name.length<3)return err("Enter your full name.");
+  if(!id)return err("Enter your student ID.");
   err("Checking your payment with Paystack…");
-  const r=await sso("/pay/claim",{student_id:idLabel,name,reference:ref});
+  const r=await sso("/pay/claim",{student_id:idLabel,name,reference:ref,...cv});
   if(r.ok&&r.session){
     startStudent(r.session,r.student);close();
     toast("Payment confirmed. Welcome, "+(stu.name||stu.label));
@@ -1542,42 +1590,85 @@ function findCol(head,pats,skip){
   for(const p of pats){const i=head.findIndex((h,k)=>k!==skip&&p.test(h));if(i>=0)return i}
   return -1;
 }
-$("#duesF").onchange=async e=>{
-  const f=e.target.files[0];if(!f)return;
+/* reads the Excel/CSV: finds the header row anywhere in the first 25 rows, or else the column that looks like student IDs */
+const looksId=v=>{const k=normIdx(v);return k.length>=5&&/\d/.test(k)};
+async function importDues(f,cls){
   try{
     if(typeof XLSX==="undefined")throw new Error("The Excel reader did not load. Check your internet connection and reload the page.");
     toast("Reading file…");
     const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
-    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
-    if(!rows.length)throw new Error("The file is empty.");
-    const head=rows[0].map(h=>String(h).toLowerCase());
-    let ci=findCol(head,[/index/,/student.?id|matric|reg.?no/]);
-    const hasHead=ci>=0;if(!hasHead)ci=0;
-    const start=hasHead?1:0;
-    const ai=hasHead?findCol(head,[/amount.?paid|paid.?amount/,/^amount/,/amount|paid/],ci):-1;
-    const ni=hasHead?findCol(head,[/name/],ci):-1;
+    let rows=[];
+    for(const n of wb.SheetNames){const r=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:""});if(r.some(x=>x.some(c=>looksId(c)))){rows=r;break}}
+    if(!rows.length)throw new Error("No student IDs were found in the file.");
+    let hr=-1,ci=-1;
+    for(let i=0;i<Math.min(rows.length,25)&&hr<0;i++){
+      const hd=rows[i].map(h=>String(h).toLowerCase());
+      const c=findCol(hd,[/index/,/student.?id|matric|reg.?no|id.?n/]);
+      if(c>=0){hr=i;ci=c}
+    }
+    let head=[];
+    if(hr>=0)head=rows[hr].map(h=>String(h).toLowerCase());
+    else{ /* no header: use the column that holds the most ID-like values */
+      const w=Math.max(...rows.slice(0,50).map(r=>r.length));let best=-1,bc=0;
+      for(let c=0;c<w;c++){const n=rows.slice(0,200).filter(r=>looksId(r[c])).length;if(n>bc){bc=n;best=c}}
+      if(best<0)throw new Error("No student IDs were found. Add a column headed Index Number.");
+      ci=best;
+    }
+    const start=hr>=0?hr+1:0;
+    const ai=hr>=0?findCol(head,[/amount.?paid|paid.?amount/,/^amount/,/amount|paid/],ci):-1;
+    const ni=hr>=0?findCol(head,[/name/],ci):-1;
     const full=num(settings.dues_full,100),min=num(settings.dues_min,50);
     const map=new Map();
     for(const r of rows.slice(start)){
-      const k=normIdx(r[ci]);if(!k)continue;
+      if(!looksId(r[ci]))continue;      /* skips serial numbers, totals and blank lines */
+      const k=normIdx(r[ci]);
       const amt=ai>=0?num(String(r[ai]).replace(/[^0-9.\-]/g,""),0):full;
       const cur=map.get(k)||{name:"",amt:0};
       cur.amt+=amt;if(ni>=0&&String(r[ni]).trim())cur.name=String(r[ni]).trim();
       map.set(k,cur);
     }
     if(!map.size)throw new Error("No index numbers found. Add a column headed Index Number.");
-    const all=[...map].map(([index_number,v])=>({index_number,student_name:v.name,amount_paid:v.amt}));
-    const ok=all.filter(x=>x.amount_paid>=min).length;
-    if(!confirm("Save "+all.length+" students? "+ok+" of them have paid "+cedi(min)+" or more and will open locked committees."+(ai<0?"\\n\\nNo Amount column was found, so everyone is treated as fully paid ("+cedi(full)+").":"")))throw new Error("Cancelled.");
+    const all=[...map].map(([index_number,v])=>({index_number,student_name:v.name,amount_paid:v.amt,...(cls||{})}));
+    const ok=all.filter(x=>x.amount_paid>=min).length,sample=all.slice(0,3).map(x=>x.index_number).join(", ");
+    const where=cls?"\nClass: "+cls.year_batch+" batch, "+cls.intake+" intake, "+cls.program+", "+cls.program_type+", Level "+cls.level:"";
+    if(!confirm("Save "+all.length+" students? "+ok+" of them have paid "+cedi(min)+" or more and can sign in.\nFirst IDs read: "+sample+where+(ai<0?"\n\nNo Amount column was found, so everyone is treated as fully paid ("+cedi(full)+").":"")))throw new Error("Cancelled.");
     for(let i=0;i<all.length;i+=500){
       toast("Saving "+Math.min(i+500,all.length)+" of "+all.length+"…");
       const u=await sb.from(CONFIG.DUES).upsert(all.slice(i,i+500));
       if(u.error)throw u.error;
     }
-    toast("Dues list saved: "+all.length+" students");
+    toast("Saved "+all.length+" students");
     refreshDues();
   }catch(x){toast(x.message==="Cancelled."?"Upload cancelled":"Failed: "+x.message)}
-  e.target.value="";
+}
+$("#duesF").onchange=async e=>{const f=e.target.files[0];if(f)await importDues(f,null);e.target.value=""};
+$("#classF").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  const c=classVals("uc");
+  if(!classOk(c)){toast("Choose the year batch, intake, program, program type and level first.");e.target.value="";return}
+  await importDues(f,c);e.target.value="";
+};
+/* class lists: count and download */
+async function classRows(){
+  const c=classVals("fc");
+  const rows=await fetchAll(CONFIG.DUES,"index_number,student_name,amount_paid,year_batch,intake,program,program_type,level","index_number");
+  return {c,rows:rows.filter(r=>(!c.year_batch||r.year_batch===c.year_batch)&&(!c.intake||r.intake===c.intake)&&(!c.program||r.program===c.program)&&(!c.program_type||r.program_type===c.program_type)&&(!c.level||r.level===c.level))};
+}
+$("#classShow").onclick=async()=>{
+  try{
+    const {rows}=await classRows();
+    const first=rows.filter(r=>semFor(Number(r.amount_paid)||0)==="First semester").length,both=rows.filter(r=>semFor(Number(r.amount_paid)||0)==="Both semesters").length;
+    $("#classCount").textContent=rows.length+" students: "+first+" paid first semester only, "+both+" paid both semesters.";
+  }catch(x){toast("Failed: "+x.message)}
+};
+$("#classDl").onclick=async()=>{
+  try{
+    if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
+    const {c,rows}=await classRows();
+    if(!rows.length)return toast("No students in that class yet.");
+    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a)]})];
+    saveBook([["Class list",aoa,[22,34,12,12,12,14,8,16,18]]],"NAMSA-class-"+[c.year_batch||"all",c.intake||"all",c.program||"all",c.program_type||"all","L"+(c.level||"all")].join("-")+"-"+stamp()+".xlsx");
+  }catch(x){toast("Failed: "+x.message)}
 };
 $("#duesClr").onclick=async()=>{
   if(!confirm("Delete the whole dues list? Nobody can open 🔒 committees until you upload a new list."))return;
@@ -1591,8 +1682,10 @@ $("#mAdd").onclick=async()=>{
   const raw=$("#mAmt").value.trim();
   const amt=raw===""?num(settings.dues_full,100):parseFloat(raw.replace(/[^0-9.]/g,""));
   if(!isFinite(amt)||amt<0)return toast("Enter a valid amount");
+  const cv=classVals("ma");
+  if(!classOk(cv))return toast("Choose the year batch, intake, program, program type and level first.");
   const name=ids.length===1?$("#mName").value.trim():"";
-  const rows=ids.map(k=>name?{index_number:k,student_name:name,amount_paid:amt}:{index_number:k,amount_paid:amt});
+  const rows=ids.map(k=>name?{index_number:k,student_name:name,amount_paid:amt,...cv}:{index_number:k,amount_paid:amt,...cv});
   const {error}=await sb.from(CONFIG.DUES).upsert(rows);
   if(error)return toast("Failed: "+error.message);
   toast(ids.length+(ids.length>1?" students":" student")+" saved with "+cedi(amt));
@@ -1891,16 +1984,16 @@ function saveBook(sheets,name){
   XLSX.writeFile(wb,name);
 }
 const stamp=()=>new Date().toISOString().slice(0,10);
-async function loadList(){return await fetchAll(CONFIG.DUES,"index_number,student_name,amount_paid","index_number")}
+async function loadList(){return await fetchAll(CONFIG.DUES,"index_number,student_name,amount_paid,year_batch,intake,program,program_type,level","index_number")}
 $("#dlList").onclick=async()=>{
   try{
     if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
     toast("Preparing the list…");
     const min=num(settings.dues_min,50),rows=await loadList();
-    const aoa=[["Index Number","Name","Total Paid (GHS)","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",a,a>=min?"Can open committees":"Below minimum"]})];
+    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),a>=min?"Can open committees":"Below minimum"]})];
     const pays=await fetchAll(CONFIG.PAYMENTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
     const pa=[["Index Number","Name","Email","Amount (GHS)","Date","Reference"],...pays.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])];
-    const sheets=[["Paid list",aoa,[22,34,18,24]],["Payments",pa,[20,30,30,14,22,30]]];
+    const sheets=[["Paid list",aoa,[22,34,12,12,12,14,8,16,18,22]],["Payments",pa,[20,30,30,14,22,30]]];
     try{
       const ts=await fetchAll(CONFIG.TSHIRTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
       sheets.push(["T-shirts",[["Index Number","Name","Email","T-shirt (GHS)","Date","Reference"],...ts.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])],[20,30,30,14,22,30]]);
