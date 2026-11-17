@@ -606,6 +606,7 @@ textarea{resize:vertical;min-height:84px}
             <input type="text" id="mName" placeholder="Name (optional)" autocomplete="off" aria-label="Student name">
             <input type="text" id="mAmt" inputmode="decimal" placeholder="Amount paid (GH₵)" aria-label="Amount paid" style="min-width:150px">
             <select id="mShirt" aria-label="T-shirt" style="min-width:170px"><option value="no">T-shirt: not paid</option><option value="yes">T-shirt: paid</option></select>
+            <select id="mSize" aria-label="T-shirt size" style="min-width:140px"><option value="">T-shirt size</option><option>Small</option><option>Medium</option><option>Large</option><option>XL</option><option>2XL</option><option>3XL</option></select>
             <button class="btn" id="mAdd">Add student</button>
           </div>
         </div>
@@ -749,6 +750,7 @@ textarea{resize:vertical;min-height:84px}
     <label for="payEmail">Email address (for your receipt)</label><input type="email" id="payEmail" autocomplete="email">
     <label>Amount</label><div id="payOpts"></div>
     <label class="chk" style="margin-top:8px"><input type="checkbox" id="payShirt"> <span id="payShirtT">➕ Add a NAMSA T-shirt</span></label>
+    <div id="payShirtBox" hidden><label for="payShirtSize">T-shirt size</label><select id="payShirtSize"><option value="">Select size</option><option>Small</option><option>Medium</option><option>Large</option><option>XL</option><option>2XL</option><option>3XL</option></select></div>
     <div class="hint" id="payTotal" style="margin:6px 0 0;font-weight:700"></div>
     <div class="idnote">Your student ID and name are saved with this payment, so next time you can sign in with just your student ID. They must be your own.</div>
     <div class="bad" id="payBad" hidden></div>
@@ -1463,6 +1465,7 @@ function payTotal(){
   return a+($("#payShirt").checked?shirtPrice():0);
 }
 function updatePayTotal(){
+  $("#payShirtBox").hidden=!$("#payShirt").checked;
   const t=payTotal();$("#payTotal").textContent="Total to pay: "+cedi(t);
   $("#payGo").textContent="Pay "+cedi(t)+" with Paystack";
 }
@@ -1475,7 +1478,7 @@ function openPay(idPrefill,paid,min,full){
   }else{opts.push([min,"Pay "+pct+"% ("+cedi(min)+"): first semester only"]);opts.push([full,"Pay in full ("+cedi(full)+"): both semesters"])}
   if(!opts.length)opts.push([min,"Pay "+cedi(min)]);
   $("#payOpts").innerHTML=opts.map((o,i)=>`<label class="chk"><input type="radio" name="payAmt" value="${o[0]}" ${i?"":"checked"}> ${esc(o[1])}</label>`).join("");
-  $("#payShirt").checked=false;$("#payShirtT").textContent="➕ Add a NAMSA T-shirt (+"+cedi(shirtPrice())+")";
+  $("#payShirt").checked=false;$("#payShirtSize").value="";$("#payShirtT").textContent="➕ Add a NAMSA T-shirt (+"+cedi(shirtPrice())+")";
   $("#payId").value=idPrefill||"";$("#payErr").textContent="";$("#payBad").hidden=true;
   updatePayTotal();
   close();open("#payO");setTimeout(()=>$(idPrefill?"#payName":"#payId").focus(),50);
@@ -1512,6 +1515,8 @@ $("#payGo").onclick=async()=>{
   if(!classOk(cv))return err("Choose your year batch, intake, program, program type and current level.");
   if(name.length<3)return err("Enter your full name.");
   if(!id)return err("Enter your student ID.");
+  const shirtSize=$("#payShirtSize").value;
+  if(shirt&&!shirtSize)return err("Choose your T-shirt size.");
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return err("Enter a valid email address for your receipt.");
   if(!isFinite(amt)||amt<=0)return err("Choose an amount.");
   if(!CONFIG.PAYSTACK_PUBLIC_KEY)return err("Online payment is not set up yet.");
@@ -1521,7 +1526,7 @@ $("#payGo").onclick=async()=>{
   try{localStorage.setItem("namsa_pay_ref",ref)}catch{}
   PaystackPop.setup({
     key:CONFIG.PAYSTACK_PUBLIC_KEY,email,amount:Math.round(amt*100),currency:"GHS",ref,
-    metadata:{custom_fields:[{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"T-shirt",variable_name:"tshirt",value:shirt?"yes":"no"},{display_name:"Batch",variable_name:"year_batch",value:cv.year_batch},{display_name:"Intake",variable_name:"intake",value:cv.intake},{display_name:"Program",variable_name:"program",value:cv.program},{display_name:"Program type",variable_name:"program_type",value:cv.program_type},{display_name:"Level",variable_name:"level",value:cv.level}],tshirt:shirt},
+    metadata:{custom_fields:[{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"T-shirt",variable_name:"tshirt",value:shirt?"yes":"no"},{display_name:"Shirt size",variable_name:"tshirt_size",value:shirt?shirtSize:""},{display_name:"Batch",variable_name:"year_batch",value:cv.year_batch},{display_name:"Intake",variable_name:"intake",value:cv.intake},{display_name:"Program",variable_name:"program",value:cv.program},{display_name:"Program type",variable_name:"program_type",value:cv.program_type},{display_name:"Level",variable_name:"level",value:cv.level}],tshirt:shirt},
     callback:function(resp){paid=true;finishPay((resp&&resp.reference)||ref)},
     onClose:function(){if(!paid){err("Checking whether your payment went through…");finishPay(ref,0,true).then(ok=>{if(!ok)err("Payment window closed. If you already paid, wait a minute, then sign in with your student ID.")})}}
   }).openIframe();
@@ -1624,13 +1629,15 @@ async function importDues(f,cls){
     const ai=hr>=0?findCol(head,[/amount.?paid|paid.?amount/,/^amount/,/amount|paid/],ci):-1;
     const ni=hr>=0?findCol(head,[/name/],ci):-1;
     const ti=hr>=0?findCol(head,[/t.?shirt|shirt/],ci):-1;
+    const zi=hr>=0?findCol(head,[/size/],ci):-1;
     const full=num(settings.dues_full,100),min=num(settings.dues_min,50);
     const map=new Map();
     for(const r of rows.slice(start)){
       if(!looksId(r[ci]))continue;      /* skips serial numbers, totals and blank lines */
       const k=normIdx(r[ci]);
       const amt=ai>=0?num(String(r[ai]).replace(/[^0-9.\-]/g,""),0):full;
-      const cur=map.get(k)||{name:"",amt:0,shirt:false};
+      const cur=map.get(k)||{name:"",amt:0,shirt:false,size:""};
+      if(zi>=0&&String(r[zi]).trim())cur.size=String(r[zi]).trim().toUpperCase().replace(/^S$/,"Small").replace(/^M$/,"Medium").replace(/^L$/,"Large").replace(/^XXL$/,"2XL").replace(/^XXXL$/,"3XL");
       cur.amt+=amt;if(ni>=0&&String(r[ni]).trim())cur.name=String(r[ni]).trim();
       if(ti>=0&&/^(y|yes|paid|true|1|x|✓|✔)/i.test(String(r[ti]).trim()))cur.shirt=true;
       map.set(k,cur);
@@ -1645,7 +1652,7 @@ async function importDues(f,cls){
       const u=await sb.from(CONFIG.DUES).upsert(all.slice(i,i+500));
       if(u.error)throw u.error;
     }
-    const shirts=[...map].filter(([,v])=>v.shirt).map(([k,v])=>[k,v.name]);
+    const shirts=[...map].filter(([,v])=>v.shirt).map(([k,v])=>[k,v.name,v.size]);
     const sErr=shirts.length?await saveShirts(shirts,true):"";
     toast("Saved "+all.length+" students"+(shirts.length?", "+shirts.length+" with T-shirt":"")+(sErr?" (T-shirts not saved: "+sErr+")":""));
     refreshDues();
@@ -1677,8 +1684,8 @@ $("#classDl").onclick=async()=>{
     const {c,rows}=await classRows();
     if(!rows.length)return toast("No students in that class yet.");
     const sh=await shirtSet();
-    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid"]})];
-    saveBook([["Class list",aoa,[22,34,12,12,12,14,8,16,18,12]]],"NAMSA-class-"+[c.year_batch||"all",c.intake||"all",c.program||"all",c.program_type||"all","L"+(c.level||"all")].join("-")+"-"+stamp()+".xlsx");
+    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt","T-shirt size"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid",sh.get(r.index_number)||""]})];
+    saveBook([["Class list",aoa,[22,34,12,12,12,14,8,16,18,12,12]]],"NAMSA-class-"+[c.year_batch||"all",c.intake||"all",c.program||"all",c.program_type||"all","L"+(c.level||"all")].join("-")+"-"+stamp()+".xlsx");
   }catch(x){toast("Failed: "+x.message)}
 };
 $("#duesClr").onclick=async()=>{
@@ -1693,7 +1700,7 @@ async function saveShirts(pairs,paid){
   if(paid){
     const now=new Date().toISOString(),price=shirtPrice();
     for(let i=0;i<pairs.length;i+=500){
-      const {error}=await sb.from(CONFIG.TSHIRTS).upsert(pairs.slice(i,i+500).map(([k,n])=>({reference:"ADMIN-"+k,index_number:k,student_name:n||null,amount:price,paid_at:now})),{onConflict:"reference"});
+      const {error}=await sb.from(CONFIG.TSHIRTS).upsert(pairs.slice(i,i+500).map(([k,n,z])=>({reference:"ADMIN-"+k,index_number:k,student_name:n||null,amount:price,paid_at:now,size:z||null})),{onConflict:"reference"});
       if(error)return error.message;
     }
   }else{
@@ -1709,14 +1716,15 @@ $("#mAdd").onclick=async()=>{
   const amt=raw===""?num(settings.dues_full,100):parseFloat(raw.replace(/[^0-9.]/g,""));
   if(!isFinite(amt)||amt<0)return toast("Enter a valid amount");
   const cv=classVals("ma");
+  if($("#mShirt").value==="yes"&&!$("#mSize").value)return toast("Choose the T-shirt size.");
   if(!classOk(cv))return toast("Choose the year batch, intake, program, program type and level first.");
   const name=ids.length===1?$("#mName").value.trim():"";
   const rows=ids.map(k=>name?{index_number:k,student_name:name,amount_paid:amt,...cv}:{index_number:k,amount_paid:amt,...cv});
   const {error}=await sb.from(CONFIG.DUES).upsert(rows);
   if(error)return toast("Failed: "+error.message);
-  const sErr=await saveShirts(ids.map(k=>[k,name]),$("#mShirt").value==="yes");
+  const sErr=await saveShirts(ids.map(k=>[k,name,$("#mSize").value]),$("#mShirt").value==="yes");
   toast(ids.length+(ids.length>1?" students":" student")+" saved with "+cedi(amt)+($("#mShirt").value==="yes"?", T-shirt paid":"")+(sErr?" (T-shirt not saved: "+sErr+")":""));
-  $("#mIdx").value="";$("#mName").value="";$("#mAmt").value="";$("#mShirt").value="no";refreshDues();
+  $("#mIdx").value="";$("#mName").value="";$("#mAmt").value="";$("#mShirt").value="no";$("#mSize").value="";refreshDues();
 };
 $("#duesQb").onclick=async()=>{
   const k=normIdx($("#duesQ").value);if(!k)return;
@@ -2011,7 +2019,12 @@ function saveBook(sheets,name){
   XLSX.writeFile(wb,name);
 }
 const stamp=()=>new Date().toISOString().slice(0,10);
-async function shirtSet(){try{const t=await fetchAll(CONFIG.TSHIRTS,"index_number","index_number");return new Set(t.map(x=>x.index_number))}catch{return new Set()}}
+async function shirtSet(){
+  let t;
+  try{t=await fetchAll(CONFIG.TSHIRTS,"index_number,size","index_number")}
+  catch{try{t=await fetchAll(CONFIG.TSHIRTS,"index_number","index_number")}catch{t=[]}}
+  return new Map(t.map(x=>[x.index_number,x.size||""]));
+}
 async function loadList(){return await fetchAll(CONFIG.DUES,"index_number,student_name,amount_paid,year_batch,intake,program,program_type,level","index_number")}
 $("#dlList").onclick=async()=>{
   try{
@@ -2019,13 +2032,15 @@ $("#dlList").onclick=async()=>{
     toast("Preparing the list…");
     const min=num(settings.dues_min,50),rows=await loadList();
     const sh=await shirtSet();
-    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid",a>=min?"Can open committees":"Below minimum"]})];
+    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt","T-shirt size","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid",sh.get(r.index_number)||"",a>=min?"Can open committees":"Below minimum"]})];
     const pays=await fetchAll(CONFIG.PAYMENTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
     const pa=[["Index Number","Name","Email","Amount (GHS)","Date","Reference"],...pays.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])];
-    const sheets=[["Paid list",aoa,[22,34,12,12,12,14,8,16,18,12,22]],["Payments",pa,[20,30,30,14,22,30]]];
+    const sheets=[["Paid list",aoa,[22,34,12,12,12,14,8,16,18,12,12,22]],["Payments",pa,[20,30,30,14,22,30]]];
     try{
-      const ts=await fetchAll(CONFIG.TSHIRTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
-      sheets.push(["T-shirts",[["Index Number","Name","Email","T-shirt (GHS)","Date","Reference"],...ts.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])],[20,30,30,14,22,30]]);
+      let ts;
+      try{ts=await fetchAll(CONFIG.TSHIRTS,"reference,index_number,student_name,email,amount,paid_at,size","paid_at")}
+      catch{ts=await fetchAll(CONFIG.TSHIRTS,"reference,index_number,student_name,email,amount,paid_at","paid_at")}
+      sheets.push(["T-shirts",[["Index Number","Name","Size","Email","T-shirt (GHS)","Date","Reference"],...ts.map(r=>[r.index_number,r.student_name||"",r.size||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])],[20,30,10,30,14,22,30]]);
     }catch{/* T-shirt table not created yet */}
     saveBook(sheets,"NAMSA-paid-list-"+stamp()+".xlsx");
     toast("Downloaded "+rows.length+" students");
