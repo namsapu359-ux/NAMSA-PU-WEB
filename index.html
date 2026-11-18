@@ -390,6 +390,37 @@ textarea{resize:vertical;min-height:84px}
 
 /* 12. MOTION PREFERENCES */
 /* Many laptops have the system "reduce motion / show animations" setting switched off, which used to freeze the background pictures, logo and leaders slider. They now always move. */
+.acgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.accard{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)}
+.accard img,.accard video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#0a1f2c}
+.accard .cap{padding:12px 14px}.accard .cap b{display:block}.accard .cap small{color:var(--muted)}
+.anncard{background:#fff;border:1px solid var(--line);border-left:5px solid var(--emerald);border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
+.anncard h3{margin:0 0 4px}.anncard small{color:var(--muted)}.anncard p{margin:8px 0 0;white-space:pre-wrap}
+/* ---- committees: endless wheel (inspired by the video) ---- */
+.wheelwrap{position:relative;height:430px;overflow:hidden;margin-top:6px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent)}
+.wring{position:absolute;left:50%;top:50%;width:780px;height:780px;margin:-390px 0 0 -390px;pointer-events:none;animation:wspin 60s linear infinite}
+.wring .wblob{fill:var(--mint);opacity:.55}
+.wring .wtxt{font-size:46px;font-weight:800;fill:var(--emerald);opacity:.16;letter-spacing:2px}
+@keyframes wspin{to{transform:rotate(360deg)}}
+.wheel{position:absolute;inset:0;touch-action:pan-y;cursor:grab;user-select:none;-webkit-user-select:none;outline:0}
+.wheel:active{cursor:grabbing}
+.wi{position:absolute;left:50%;top:47%;width:230px;height:290px;margin:-145px 0 0 -115px;will-change:transform,filter,opacity;backface-visibility:hidden}
+.wi .card{width:100%;height:100%;aspect-ratio:auto;padding:16px 15px 15px;border-radius:20px;box-shadow:0 18px 40px rgba(10,31,44,.22);animation:none}
+.wi .card h3{font-size:1.05rem;margin:12px 0 6px}
+.wi .card p{display:-webkit-box!important;-webkit-line-clamp:4;font-size:.86rem}
+.wi .card .btn{padding:10px;font-size:.84rem;border-radius:10px}
+.wi .card .btn .long{display:inline}.wi .card .btn .short{display:none}
+.wi .ico{width:46px;height:46px;font-size:1.6rem}
+.wnav{position:absolute;top:50%;z-index:300;width:44px;height:44px;margin-top:-22px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:1.6rem;line-height:1;cursor:pointer;box-shadow:var(--shadow);color:var(--deep)}
+.wnav.prev{left:8px}.wnav.next{right:8px}
+.wpill{position:absolute;z-index:400;left:0;top:0;pointer-events:none;background:var(--deep);color:#fff;font-weight:700;font-size:.78rem;padding:7px 14px;border-radius:999px;white-space:nowrap}
+@media(max-width:520px){
+  .wheelwrap{height:380px}
+  .wi{width:190px;height:250px;margin:-125px 0 0 -95px}
+  .wi .card h3{font-size:.95rem}.wi .card p{font-size:.78rem;-webkit-line-clamp:3}
+  .wnav{display:none}
+  .wring{width:560px;height:560px;margin:-280px 0 0 -280px}
+}
 </style>
 </head>
 <body>
@@ -401,6 +432,8 @@ textarea{resize:vertical;min-height:84px}
     <button class="burger" id="burger" aria-label="Open menu">☰</button>
     <div class="links" id="links">
       <a href="#home">Home</a>
+      <a href="#announcements" id="navAnn" hidden>Announcements</a>
+      <a href="#activities" id="navAct" hidden>Activities</a>
       <a href="#leadership">Leadership</a>
       <a href="#committees">Committees</a>
       <a href="#about">About</a>
@@ -452,6 +485,21 @@ textarea{resize:vertical;min-height:84px}
     </svg>
   </div>
 
+  <section id="announcements" hidden>
+    <div class="wrap">
+      <div class="sec-h"><span class="eyebrow">Stay informed</span><h2>Announcements</h2><p>The latest news from NAMSA-PU.</p></div>
+      <div id="annList"></div>
+    </div>
+  </section>
+
+  <section id="activities" class="band" hidden>
+    <div class="wrap">
+      <div class="sec-h"><span class="eyebrow">On campus</span><h2>Campus activities</h2><p>Pictures and short videos of what is going on.</p></div>
+      <div class="acgrid" id="acGrid"></div>
+      <div class="row" style="justify-content:center;margin-top:16px"><button class="btn alt" id="acMore" hidden>Show more</button></div>
+    </div>
+  </section>
+
   <section id="leadership">
     <div class="wrap">
       <div class="sec-h"><span class="eyebrow">The people</span><h2>Our leadership</h2><p>The people who serve and have served NAMSA-PU.</p></div>
@@ -469,7 +517,13 @@ textarea{resize:vertical;min-height:84px}
         <span class="count" id="count">0</span>
       </div>
       <div id="notice"></div>
-      <div class="grid" id="grid"></div>
+      <div class="wheelwrap" id="wheelwrap">
+        <svg class="wring" viewBox="0 0 600 600" aria-hidden="true"><circle cx="300" cy="300" r="190" class="wblob"/><path id="ringP" d="M300,300 m-250,0 a250,250 0 1,1 500,0 a250,250 0 1,1 -500,0" fill="none"/><text class="wtxt"><textPath href="#ringP" textLength="1555" lengthAdjust="spacing">COMMITTEES · SERVE · GROW · NAMSA-PU · REPORT · RESOLVE ·</textPath></text></svg>
+        <div class="wheel" id="grid" tabindex="0" role="group" aria-label="Committees. Drag, swipe or use the arrow keys to move."></div>
+        <button class="wnav prev" id="wPrev" type="button" aria-label="Previous committee">‹</button>
+        <button class="wnav next" id="wNext" type="button" aria-label="Next committee">›</button>
+        <div class="wpill" id="wPill" hidden>Drag</div>
+      </div>
     </div>
   </section>
 
@@ -503,6 +557,8 @@ textarea{resize:vertical;min-height:84px}
       <button data-tab="committees" class="on">Committees</button>
       <button data-tab="leadership">Leadership</button>
       <button data-tab="pictures">Website</button>
+      <button data-tab="activities">Activities</button>
+      <button data-tab="news">Announcements</button>
       <button data-tab="dues">Dues &amp; payments</button>
       <button data-tab="security">Security</button>
       <button data-tab="admins">Admins</button>
@@ -537,17 +593,38 @@ textarea{resize:vertical;min-height:84px}
         <div class="adm-top"><div><h2>NAMSA logo</h2><p style="color:var(--muted)">Shown in the header, the front page and the footer.</p></div></div>
         <div class="item">
           <div class="thumb" id="logoPrev">🎓</div>
-          <div class="t"><b>NAMSA logo</b><small>PNG or JPG, square works best (max 5 MB)</small></div>
+          <div class="t"><b>NAMSA logo</b><small>PNG or JPG, square works best. It is shrunk automatically.</small></div>
           <div class="acts"><label class="btn">Upload logo<input type="file" id="logoF" accept="image/*" hidden></label><button class="btn red" id="logoDel">Remove</button></div>
         </div>
       </div>
       <div class="panel">
         <div class="adm-top">
-          <div><h2>Front page pictures</h2><p style="color:var(--muted)">These rotate automatically on the front page. Use wide landscape photos (max 5 MB each).</p></div>
+          <div><h2>Front page pictures</h2><p style="color:var(--muted)">These rotate automatically on the front page. Use wide landscape photos. Each is shrunk to under 50 KB automatically.</p></div>
           <div class="row"><label class="btn">＋ Upload pictures<input type="file" id="slideF" accept="image/*" multiple hidden></label></div>
         </div>
         <div id="slideList"></div>
       </div>
+    </div>
+
+    <div class="atab" id="tab-activities">
+      <div class="panel">
+        <div class="adm-top"><div><h2>Campus activities</h2><p style="color:var(--muted)">Share pictures and short videos of what is going on campus. Pictures are shrunk to under 50 KB automatically. Videos must be 200 KB or smaller.</p></div></div>
+        <label for="acTitle">Title</label><input type="text" id="acTitle" maxlength="120" placeholder="e.g. Health screening outreach">
+        <label for="acCap">Short description (optional)</label><input type="text" id="acCap" maxlength="300">
+        <div class="row" style="margin-top:12px"><label class="btn">＋ Upload picture or video<input type="file" id="acF" accept="image/*,video/*" multiple hidden></label></div>
+      </div>
+      <div class="panel"><div id="acList"></div></div>
+    </div>
+
+    <div class="atab" id="tab-news">
+      <div class="panel">
+        <div class="adm-top"><div><h2>Announcements</h2><p style="color:var(--muted)">Post news for all students. It appears in the Announcements section on the front page.</p></div></div>
+        <label for="anTitle">Title</label><input type="text" id="anTitle" maxlength="140">
+        <label for="anBody">Message</label><textarea id="anBody" maxlength="2000"></textarea>
+        <label class="chk" style="margin-top:8px"><input type="checkbox" id="anPin"> 📌 Pin to the top</label>
+        <div class="row" style="margin-top:12px"><button class="btn" id="anPost">Post announcement</button></div>
+      </div>
+      <div class="panel"><div id="anList"></div></div>
     </div>
 
     <div class="atab" id="tab-dues">
@@ -849,6 +926,8 @@ const CONFIG = {
   STUDENTS: "namsa_students",
   PAYMENTS: "namsa_portal_payments",
   TSHIRTS: "namsa_portal_tshirts",
+  ACTIVITIES: "namsa_portal_activities",
+  NEWS: "namsa_portal_announcements",
   PAYSTACK_PUBLIC_KEY: "pk_live_4aa7e7cbf8c115c107ef72f3302a25f18ff16608"   // public key: safe to be in the page. The SECRET key is never here.
 };
 CONFIG.SSO_URL=CONFIG.SUPABASE_URL+"/functions/v1/namsa-sso";   // the central sign-on service (Edge Function)
@@ -892,6 +971,7 @@ let links={},slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],se
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2800)}
 const safeUrl=u=>{try{const x=new URL(u);return /^https?:$/.test(x.protocol)?x.href:""}catch{return""}};
 
+let activities=[],news=[];
 async function load(){
   $("#notice").innerHTML="";
   if(!sb){list=DEFAULTS;people=DEMO;$("#notice").innerHTML=configured?'<div class="note">The Supabase library could not load. Check your internet connection and reload the page.</div>':'<div class="note">Preview mode: add your Supabase URL and public key in the CONFIG block to load and save committees and leaders permanently.</div>';}
@@ -905,10 +985,87 @@ async function load(){
     slides=s1.error?[]:s1.data.filter(x=>safeUrl(x.image_url));
     const s2=await sb.from(CONFIG.SETTINGS).select("*");
     settings=s2.error?{}:Object.fromEntries(s2.data.map(x=>[x.key,x.value]));
+    const a1=await sb.from(CONFIG.ACTIVITIES).select("*").order("created_at",{ascending:false});
+    activities=a1.error?[]:a1.data.filter(x=>safeUrl(x.media_url));
+    const n1=await sb.from(CONFIG.NEWS).select("*").order("created_at",{ascending:false});
+    news=n1.error?[]:n1.data;
   }
-  render();renderPeople();renderAdmin();renderBrand();renderSlides();
+  render();renderPeople();renderAdmin();renderBrand();renderSlides();renderCampus();
   loadLinks();
 }
+
+/* ---- announcements and campus activities ---- */
+let acShown=12;
+const fmtDate=d=>{try{return new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}catch{return ""}};
+function renderCampus(){
+  /* public: announcements (pinned first) */
+  const an=news.filter(x=>x.active!==false).sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||new Date(b.created_at)-new Date(a.created_at));
+  $("#announcements").hidden=!an.length;$("#navAnn").hidden=!an.length;
+  $("#annList").innerHTML=an.slice(0,8).map(x=>`<div class="anncard"><h3>${x.pinned?"📌 ":""}${esc(x.title)}</h3><small>${esc(fmtDate(x.created_at))}</small><p>${esc(x.body||"")}</p></div>`).join("");
+  /* public: campus activities */
+  $("#activities").hidden=!activities.length;$("#navAct").hidden=!activities.length;
+  $("#acGrid").innerHTML=activities.slice(0,acShown).map(x=>{
+    const u=esc(safeUrl(x.media_url));
+    const m=x.media_type==="video"?`<video src="${u}" controls preload="none" playsinline></video>`:`<img src="${u}" alt="${esc(x.title)}" loading="lazy" decoding="async">`;
+    return `<div class="accard">${m}<div class="cap"><b>${esc(x.title)}</b>${x.caption?`<small>${esc(x.caption)}</small><br>`:""}<small>${esc(fmtDate(x.created_at))}</small></div></div>`}).join("");
+  $("#acMore").hidden=activities.length<=acShown;
+  /* admin lists */
+  const al=$("#acList");
+  if(al)al.innerHTML=activities.length?activities.map(x=>{
+    const u=esc(safeUrl(x.media_url));
+    const th=x.media_type==="video"?`<video src="${u}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover"></video>`:`<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">`;
+    return `<div class="item"><div class="thumb">${th}</div><div class="t"><b>${esc(x.title)}</b><small>${x.media_type==="video"?"Video":"Picture"} · ${esc(fmtDate(x.created_at))}</small></div><div class="acts"><button class="btn red" data-acdel="${esc(x.id)}">Delete</button></div></div>`}).join(""):'<div class="empty">No activities yet. Upload a picture or short video above.</div>';
+  const nl=$("#anList");
+  if(nl)nl.innerHTML=news.length?news.map(x=>`<div class="item"><div class="t"><b>${x.pinned?"📌 ":""}${esc(x.title)}</b><small>${esc(fmtDate(x.created_at))}${x.active===false?" · hidden":""}</small></div><div class="acts"><button class="btn alt" data-anpin="${esc(x.id)}">${x.pinned?"Unpin":"Pin"}</button><button class="btn red" data-andel="${esc(x.id)}">Delete</button></div></div>`).join(""):'<div class="empty">No announcements yet.</div>';
+}
+$("#acMore").onclick=()=>{acShown+=12;renderCampus()};
+$("#acF").onchange=async e=>{
+  const files=[...e.target.files];if(!files.length)return;
+  const title=$("#acTitle").value.trim()||"Campus activity",caption=$("#acCap").value.trim();
+  try{
+    for(const [i,f] of files.entries()){
+      toast("Shrinking and uploading "+(i+1)+" of "+files.length+"…");
+      const m=await uploadMedia(f,"activities",true);
+      const {error}=await sb.from(CONFIG.ACTIVITIES).insert({title,caption,media_url:m.url,media_type:m.type});
+      if(error){dropFile(m.url);throw error}
+    }
+    $("#acTitle").value="";$("#acCap").value="";
+    toast("Added to campus activities");load();
+  }catch(x){toast("Failed: "+x.message)}
+  e.target.value="";
+};
+$("#acList").onclick=async e=>{
+  const d=e.target.closest("[data-acdel]");if(!d)return;
+  if(!confirm("Delete this activity?"))return;
+  const a=activities.find(x=>String(x.id)===d.dataset.acdel);
+  const {error}=await sb.from(CONFIG.ACTIVITIES).delete().eq("id",d.dataset.acdel);
+  if(error)return toast("Delete failed: "+error.message);
+  if(a)dropFile(a.media_url);
+  toast("Deleted");load();
+};
+$("#anPost").onclick=async()=>{
+  const title=$("#anTitle").value.trim(),body=$("#anBody").value.trim();
+  if(!title)return toast("Enter a title.");
+  const {error}=await sb.from(CONFIG.NEWS).insert({title,body,pinned:$("#anPin").checked,active:true});
+  if(error)return toast("Failed: "+error.message);
+  $("#anTitle").value="";$("#anBody").value="";$("#anPin").checked=false;
+  toast("Announcement posted");load();
+};
+$("#anList").onclick=async e=>{
+  const pin=e.target.closest("[data-anpin]"),del=e.target.closest("[data-andel]");
+  if(pin){
+    const n=news.find(x=>String(x.id)===pin.dataset.anpin);if(!n)return;
+    const {error}=await sb.from(CONFIG.NEWS).update({pinned:!n.pinned}).eq("id",n.id);
+    if(error)return toast("Failed: "+error.message);
+    load();
+  }
+  if(del){
+    if(!confirm("Delete this announcement?"))return;
+    const {error}=await sb.from(CONFIG.NEWS).delete().eq("id",del.dataset.andel);
+    if(error)return toast("Delete failed: "+error.message);
+    toast("Deleted");load();
+  }
+};
 
 /* ---- leadership ---- */
 const ini=n=>n.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
@@ -990,20 +1147,113 @@ async function loadLinks(){
 }
 
 /* ---- committees ---- */
+/* ===== committees wheel: endless loop, arc layout, drag / swipe / arrows, auto-advance ===== */
+const W={rows:[],slots:0,els:[],pos:0,vel:0,target:null,drag:false,sx:0,sp:0,lx:0,moved:false,noClick:false,vis:false,run:false,hover:false,idleAt:0,th:19,R:620};
+const wStage=()=>$("#grid");
+function cardHtml(c){
+  const live=!c.coming_soon&&c.sso_ready;
+  const btn=c.coming_soon?'<span class="btn dis">Coming soon</span>'
+    :live?'<span class="btn"><span class="long">Visit to report issue</span><span class="short">Visit</span></span>'
+    :c.has_link?'<span class="btn dis">Pending integration</span>':'<span class="btn dis">Link not set</span>';
+  return `<article class="card ${c.coming_soon?"soon":""} ${live?"tap":""}" ${live?`data-open="${esc(c.id)}" tabindex="0" role="link" aria-label="Visit ${esc(c.name)} to report an issue"`:""}>
+    <div class="ctop"><div class="ico">${esc(c.icon||"🏛️")}</div><div class="cb">${c.coming_soon?'<span class="badge">Coming soon</span>':""}${c.requires_dues?'<span class="lock">🔒 Dues</span>':""}</div></div>
+    <h3>${esc(c.name)}</h3><p>${esc(c.description)}</p>${btn}</article>`;
+}
+function wheelSet(rows){
+  const st=wStage();W.rows=rows;
+  if(!rows.length){st.innerHTML='<div class="empty" style="position:absolute;inset:0;display:grid;place-items:center">No committees match your search. Try a different word.</div>';W.slots=0;W.els=[];return}
+  const N=rows.length,reps=N<=2?1:Math.ceil(9/N);   /* repeat the list so the loop never runs dry */
+  W.slots=N*reps;
+  st.innerHTML=Array.from({length:W.slots},(_,i)=>`<div class="wi" data-i="${i}">${cardHtml(rows[i%N])}</div>`).join("");
+  W.els=[...st.children];
+  W.pos=0;W.vel=0;W.target=null;W.idleAt=performance.now()+2500;
+  wLayout();wKick();
+}
+const wDelta=i=>{let d=((i-W.pos)%W.slots+W.slots)%W.slots;if(d>W.slots/2)d-=W.slots;return d};
+function wLayout(){
+  const n=W.slots;if(!n)return;
+  const mob=innerWidth<=520;W.R=mob?400:620;W.th=19;
+  const R=W.R,th=W.th*Math.PI/180;
+  for(let i=0;i<n;i++){
+    const el=W.els[i],d=wDelta(i),ad=Math.abs(d);
+    if(ad>4.2||(n<=2&&ad>1.2)){el.style.display="none";continue}
+    el.style.display="";
+    const a=d*th,x=Math.sin(a)*R,y=(1-Math.cos(a))*R*.9;
+    const sc=1.07-Math.min(ad,3)*.16,op=ad<2.3?1:Math.max(0,1-(ad-2.3)*.55),bl=Math.min(ad,3)*1.3;
+    el.style.transform=`translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) rotate(${(a*180/Math.PI).toFixed(2)}deg) scale(${sc.toFixed(3)})`;
+    el.style.opacity=op.toFixed(2);
+    el.style.filter=bl>.2?`blur(${bl.toFixed(1)}px)`:"none";
+    el.style.zIndex=String(100-Math.round(ad*10));
+    el.style.pointerEvents=ad<3?"auto":"none";
+  }
+}
+const wSpacing=()=>W.R*Math.sin(W.th*Math.PI/180);
+function wWrap(){const n=W.slots;if(!n)return;let sh=0;if(W.pos<0)sh=n;else if(W.pos>=n)sh=-n;if(sh){W.pos+=sh;if(W.target!==null)W.target+=sh}}
+function wGo(delta){W.vel=0;W.target=(W.target!==null?W.target:Math.round(W.pos))+delta;W.idleAt=performance.now()+4000;wKick()}
+function wLoop(t){
+  W.run=false;
+  if(!W.vis||!W.slots)return;
+  if(!W.drag){
+    if(W.target!==null){W.pos+=(W.target-W.pos)*.13;if(Math.abs(W.target-W.pos)<.002){W.pos=W.target;W.target=null}}
+    else if(Math.abs(W.vel)>.003){W.pos+=W.vel;W.vel*=.93;if(Math.abs(W.vel)<=.003){W.vel=0;W.target=Math.round(W.pos)}}
+    else if(!W.hover&&W.slots>2&&t>W.idleAt){W.target=Math.round(W.pos)+1;W.idleAt=t+3200}   /* keeps turning by itself */
+  }
+  wWrap();wLayout();
+  W.run=true;requestAnimationFrame(wLoop);
+}
+function wKick(){if(W.vis&&!W.run){W.run=true;requestAnimationFrame(wLoop)}}
+new IntersectionObserver(es=>{W.vis=es[0].isIntersecting;wKick()},{threshold:.05}).observe($("#wheelwrap"));
+addEventListener("resize",wLayout);
+/* drag / swipe */
+wStage().addEventListener("pointerdown",e=>{
+  if(e.button>0||!W.slots)return;
+  W.drag=true;W.moved=false;W.sx=W.lx=e.clientX;W.sp=W.pos;W.vel=0;W.target=null;
+});
+addEventListener("pointermove",e=>{
+  if(!W.drag)return;
+  const dx=e.clientX-W.sx;if(Math.abs(dx)>6)W.moved=true;
+  if(W.moved){W.pos=W.sp-dx/wSpacing();W.vel=-(e.clientX-W.lx)/wSpacing()*.9;W.lx=e.clientX;wWrap();wLayout()}
+});
+addEventListener("pointerup",()=>{
+  if(!W.drag)return;W.drag=false;
+  if(W.moved){W.noClick=true;setTimeout(()=>{W.noClick=false},60);W.idleAt=performance.now()+4000}
+  if(Math.abs(W.vel)<=.003)W.target=Math.round(W.pos);
+  wKick();
+});
+addEventListener("pointercancel",()=>{W.drag=false;W.target=Math.round(W.pos);wKick()});
+/* sideways trackpad / mouse wheel */
+$("#wheelwrap").addEventListener("wheel",e=>{
+  if(Math.abs(e.deltaX)<=Math.abs(e.deltaY)||!W.slots)return;
+  e.preventDefault();W.target=null;W.pos+=e.deltaX/(wSpacing()*2.2);W.vel=0;wWrap();W.idleAt=performance.now()+4000;
+  clearTimeout(W.wt);W.wt=setTimeout(()=>{W.target=Math.round(W.pos);wKick()},140);wKick();
+},{passive:false});
+$("#wPrev").onclick=()=>wGo(-1);$("#wNext").onclick=()=>wGo(1);
+/* cursor pill, like the video */
+const wp=$("#wPill"),ww=$("#wheelwrap");
+ww.addEventListener("pointermove",e=>{
+  if(e.pointerType!=="mouse"||!W.slots){wp.hidden=true;return}
+  const r=ww.getBoundingClientRect(),c=e.target.closest&&e.target.closest(".wi");
+  const center=c&&Math.abs(wDelta(+c.dataset.i))<.5&&c.querySelector("[data-open]");
+  wp.textContent=center?"Open":"Drag";wp.hidden=false;
+  wp.style.transform=`translate(${e.clientX-r.left+16}px,${e.clientY-r.top+16}px)`;
+});
+ww.addEventListener("pointerenter",()=>{W.hover=true});
+ww.addEventListener("pointerleave",()=>{W.hover=false;wp.hidden=true});
+/* open the centred committee; a side card first slides to the centre */
+function wTap(e){
+  if(W.noClick)return;
+  const wi=e.target.closest(".wi");if(!wi)return;
+  const d=wDelta(+wi.dataset.i);
+  if(Math.abs(d)>=.5){W.vel=0;W.target=W.pos+d;W.idleAt=performance.now()+4000;wKick();return}
+  tapCard(e);
+}
+
 function render(){
   const q=$("#q").value.trim().toLowerCase();
   const rows=list.filter(c=>(c.name+" "+c.description).toLowerCase().includes(q));
   const sc=$("#stC");if(sc)sc.textContent=list.length;
   $("#count").textContent=rows.length+(rows.length===1?" committee":" committees");
-  $("#grid").innerHTML=rows.length?rows.map(c=>{
-    const live=!c.coming_soon&&c.sso_ready;
-    const btn=c.coming_soon?'<span class="btn dis">Coming soon</span>'
-      :live?'<span class="btn"><span class="long">Visit to report issue</span><span class="short">Visit</span></span>'
-      :c.has_link?'<span class="btn dis">Pending integration</span>':'<span class="btn dis">Link not set</span>';
-    return `<article class="card ${c.coming_soon?"soon":""} ${live?"tap":""}" ${live?`data-open="${esc(c.id)}" tabindex="0" role="link" aria-label="Visit ${esc(c.name)} to report an issue"`:""}>
-      <div class="ctop"><div class="ico">${esc(c.icon||"🏛️")}</div><div class="cb">${c.coming_soon?'<span class="badge">Coming soon</span>':""}${c.requires_dues?'<span class="lock">🔒 Dues</span>':""}</div></div>
-      <h3>${esc(c.name)}</h3><p>${esc(c.description)}</p>${btn}</article>`;
-  }).join(""):'<div class="empty" style="grid-column:1/-1">No committees match your search. Try a different word.</div>';
+  wheelSet(rows);
 }
 
 function renderAdmin(){
@@ -1208,9 +1458,8 @@ $("#pSave").onclick=async()=>{
   if(url&&!safeUrl(url))return err("Photo link must start with https://");
   if(file){
     if(!file.type.startsWith("image/"))return err("Choose an image file.");
-    if(file.size>4*1024*1024)return err("Photo must be under 4 MB.");
-    err("Uploading photo…");
-    file=await shrinkImage(file);
+    err("Shrinking and uploading photo…");
+    try{file=await prepareMedia(file,"people",false)}catch(x){return err(x.message)}
     const path=Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+(file.name.split(".").pop()||"jpg").toLowerCase();
     const up=await sb.storage.from(CONFIG.BUCKET).upload(path,file,{contentType:file.type,cacheControl:"31536000"});
     if(up.error)return err("Upload failed: "+up.error.message);
@@ -1249,8 +1498,12 @@ function closeViewer(){
   $("#viewer").classList.remove("show");$("#vFrame").src="about:blank";document.body.style.overflow="";
 }
 const tapCard=e=>{const b=e.target.closest("[data-open]");if(!b)return;const c=list.find(c=>String(c.id)===b.dataset.open);if(!c)return;openCommittee(c)};
-$("#grid").onclick=tapCard;
-$("#grid").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();tapCard(e)}};
+$("#grid").onclick=wTap;
+$("#grid").onkeydown=e=>{
+  if(e.key==="ArrowRight"){e.preventDefault();wGo(1)}
+  else if(e.key==="ArrowLeft"){e.preventDefault();wGo(-1)}
+  else if(e.key==="Enter"||e.key===" "){e.preventDefault();wTap(e)}
+};
 $("#vBack").onclick=()=>{
   if(location.hash==="#viewer")history.back();else closeViewer();
   setTimeout(()=>{const el=$("#committees");if(el)el.scrollIntoView()},80);
@@ -1309,13 +1562,47 @@ async function shrinkImage(file,max=900,q=.82){
     return blob&&blob.size<file.size?new File([blob],file.name.replace(/\.[^.]+$/,"")+".jpg",{type:"image/jpeg"}):file;
   }catch{return file}
 }
-async function uploadImg(file,folder){
-  if(!file.type.startsWith("image/"))throw new Error("Choose image files only.");
-  if(file.size>5*1024*1024)throw new Error(file.name+" is over 5 MB.");
-  const path=folder+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+(file.name.split(".").pop()||"jpg").toLowerCase();
-  const up=await sb.storage.from(CONFIG.BUCKET).upload(path,file,{contentType:file.type});
+/* Every picture is shrunk to 50 KB or less in the browser; videos must be 200 KB or less. Nothing bigger is ever uploaded. */
+const MAX_IMG=50*1024,MAX_VID=200*1024;
+async function shrinkTo(file,maxBytes,opt={}){
+  let bmp;
+  try{bmp=await createImageBitmap(file)}catch{throw new Error(file.name+" could not be read. Use a JPG or PNG picture.")}
+  const png=!!opt.png;let max=opt.max||1000,q=.78,blob=null;
+  for(let i=0;i<16&&max>=100;i++){
+    const k=Math.min(1,max/Math.max(bmp.width,bmp.height));
+    const c=document.createElement("canvas");c.width=Math.max(1,Math.round(bmp.width*k));c.height=Math.max(1,Math.round(bmp.height*k));
+    const x=c.getContext("2d");if(!png){x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height)}x.drawImage(bmp,0,0,c.width,c.height);
+    blob=await new Promise(r=>c.toBlob(r,png?"image/png":"image/jpeg",q));
+    if(blob&&blob.size<=maxBytes)break;
+    if(!png&&q>.45)q-=.1;else max=Math.round(max*.8);   /* lower the quality first, then the size */
+  }
+  if(!blob||blob.size>maxBytes)throw new Error(file.name+" could not be made smaller than "+Math.round(maxBytes/1024)+" KB. Try a simpler picture.");
+  return new File([blob],file.name.replace(/\.[^.]+$/,"")+(png?".png":".jpg"),{type:png?"image/png":"image/jpeg"});
+}
+async function prepareMedia(file,folder,allowVideo){
+  if(file.type.startsWith("video/")){
+    if(!allowVideo)throw new Error("Choose a picture here, not a video.");
+    if(file.size>MAX_VID)throw new Error(file.name+" is "+Math.round(file.size/1024)+" KB. Videos must be 200 KB or smaller (a few seconds). Trim or compress it first.");
+    return file;
+  }
+  if(file.type.startsWith("image/")){
+    if(file.size>30*1024*1024)throw new Error(file.name+" is far too large.");
+    return await shrinkTo(file,MAX_IMG,folder==="logo"?{png:true,max:320}:{max:1000});
+  }
+  throw new Error("Only pictures (shrunk to 50 KB) and short videos (200 KB) can be uploaded.");
+}
+async function uploadMedia(file,folder,allowVideo){
+  const f=await prepareMedia(file,folder,allowVideo);
+  const path=folder+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+(f.name.split(".").pop()||"jpg").toLowerCase();
+  const up=await sb.storage.from(CONFIG.BUCKET).upload(path,f,{contentType:f.type,cacheControl:"31536000"});
   if(up.error)throw up.error;
-  return sb.storage.from(CONFIG.BUCKET).getPublicUrl(path).data.publicUrl;
+  return {url:sb.storage.from(CONFIG.BUCKET).getPublicUrl(path).data.publicUrl,type:f.type.startsWith("video/")?"video":"image"};
+}
+async function uploadImg(file,folder){return (await uploadMedia(file,folder,false)).url}
+/* removes the stored file when something is deleted, so no space is wasted */
+async function dropFile(url){
+  const m=String(url||"").match(/\/storage\/v1\/object\/public\/[^/]+\/(.+)$/);
+  if(m)try{await sb.storage.from(CONFIG.BUCKET).remove([decodeURIComponent(m[1])])}catch{}
 }
 $("#logoF").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
@@ -1351,8 +1638,10 @@ $("#slideF").onchange=async e=>{
 $("#slideList").onclick=async e=>{
   const d=e.target.closest("[data-sdel]");if(!d)return;
   if(!confirm("Delete this picture from the front page?"))return;
+  const sl=slides.find(x=>String(x.id)===d.dataset.sdel);
   const {error}=await sb.from(CONFIG.SLIDES).delete().eq("id",d.dataset.sdel);
   if(error)return toast("Delete failed: "+error.message);
+  if(sl)dropFile(sl.image_url);
   toast("Picture deleted");load();
 };
 
