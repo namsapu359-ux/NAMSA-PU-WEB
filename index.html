@@ -421,6 +421,27 @@ textarea{resize:vertical;min-height:84px}
   .wnav{display:none}
   .wring{width:560px;height:560px;margin:-280px 0 0 -280px}
 }
+/* ---- welcome page: equipment ring (3D-style circle that goes round) ---- */
+.gear{position:relative;height:340px;user-select:none;-webkit-user-select:none;touch-action:pan-y}
+.gorb{position:absolute;left:50%;top:47%;width:min(92%,430px);height:150px;transform:translate(-50%,-30%);border-radius:50%;border:2px dashed rgba(186,230,253,.28);box-shadow:0 0 60px rgba(125,211,252,.18) inset}
+.gring{position:absolute;inset:0}
+.gi{position:absolute;left:50%;top:46%;width:98px;margin:-60px 0 0 -49px;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;cursor:pointer;will-change:transform,opacity,filter;color:#fff;font:inherit}
+.gplate{width:92px;height:92px;border-radius:26px;background:linear-gradient(160deg,#ffffff,#dbeafe);display:grid;place-items:center;box-shadow:0 14px 30px rgba(3,20,45,.38);transition:box-shadow .3s}
+.gplate svg{width:74px;height:74px;display:block}
+.glab{font-size:.74rem;font-weight:700;text-align:center;line-height:1.15;text-shadow:0 1px 6px rgba(0,0,0,.55);opacity:0;transition:opacity .25s}
+.gi.front .glab,.gi.sel .glab{opacity:1}
+.gi.sel .gplate{box-shadow:0 0 0 4px rgba(125,211,252,.75),0 22px 46px rgba(3,20,45,.5)}
+.gi:focus-visible .gplate{outline:3px solid #fff}
+.gcap{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:.78rem;color:#cfe3f5;letter-spacing:.03em;transition:opacity .2s}
+.ginfo{position:absolute;left:0;right:0;bottom:0;z-index:500;background:rgba(7,32,60,.94);border:1px solid rgba(125,211,252,.4);border-radius:20px;padding:12px 16px 14px;box-shadow:0 18px 40px rgba(0,0,0,.4);animation:ginUp .35s cubic-bezier(.2,1.2,.4,1) both}
+.ginfo[hidden]{display:none}
+.ginfo h3{font-size:1.02rem;margin:0 26px 4px 0;color:#fff}
+.ginfo p{font-size:.84rem;line-height:1.45;color:#d6e9f7;margin:0}
+.ginfo .gtip{font-size:.8rem;line-height:1.4;color:#bae6fd;margin-top:6px}
+.ginfo .gsay{margin-top:8px;padding:6px 14px;font-size:.78rem}
+.gx{position:absolute;top:8px;right:10px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;font-size:.9rem}
+@keyframes ginUp{from{opacity:0;transform:translateY(40px) scale(.96)}}
+@media(max-width:520px){.gear{height:330px}.gi{width:82px;margin:-52px 0 0 -41px}.gplate{width:76px;height:76px;border-radius:22px}.gplate svg{width:60px;height:60px}.ginfo p{font-size:.8rem}}
 </style>
 </head>
 <body>
@@ -467,15 +488,17 @@ textarea{resize:vertical;min-height:84px}
           <div><b>24/7</b><span>Online</span></div>
         </div>
       </div>
-      <div class="monitor" role="img" aria-label="Illustrative patient monitor showing blood pressure, respiratory rate, pulse and oxygen saturation">
-        <svg class="ecg" viewBox="0 0 1400 80" preserveAspectRatio="none" aria-hidden="true"><g id="ecgG"><path id="ecgP" d=""/></g></svg>
-        <div class="vit">
-          <div class="v"><span class="l">BP</span><b id="vBP">120/80</b><span class="u">mmHg</span></div>
-          <div class="v"><span class="l">RR</span><b id="vRR">16</b><span class="u">breaths/min</span></div>
-          <div class="v pulse"><span class="l">PULSE</span><b id="vHR">72</b><span class="u">bpm</span></div>
-          <div class="v"><span class="l">SpO₂</span><b id="vSP">98</b><span class="u">%</span></div>
+      <div class="gear" id="gear" role="group" aria-label="Nursing equipment going round in a circle. Tap one to learn about it.">
+        <div class="gorb" aria-hidden="true"></div>
+        <div class="gring" id="gring"></div>
+        <div class="gcap" id="gcap">Tap any equipment to learn about it</div>
+        <div class="ginfo" id="ginfo" hidden>
+          <button class="gx" id="giX" type="button" aria-label="Close">✕</button>
+          <h3 id="giT"></h3>
+          <p id="giP"></p>
+          <div class="gtip" id="giTip"></div>
+          <button class="btn light gsay" id="giSay" type="button">🔊 Listen</button>
         </div>
-        <div class="cap">Illustrative display, not patient data</div>
       </div>
     </div>
     <div class="dots" id="dots"></div>
@@ -1531,12 +1554,99 @@ function renderSlides(){
   startTimer();
 }
 $("#dots").onclick=e=>{const b=e.target.closest("[data-s]");if(b){goSlide(+b.dataset.s);startTimer()}};
+/* ===== welcome page: nursing equipment going round in a circle ===== */
 (function(){
-  const beat="h20 q5 -10 10 0 h12 l4 6 l5 -40 l5 50 l4 -16 h14 q8 -14 16 0 h50";
-  $("#ecgP").setAttribute("d","M0 40 "+(beat+" ").repeat(12));
-  const r=(a,b)=>Math.floor(a+Math.random()*(b-a+1));
-  const tick=()=>{$("#vBP").textContent=r(114,124)+"/"+r(74,82);$("#vRR").textContent=r(14,18);$("#vHR").textContent=r(68,78);$("#vSP").textContent=r(97,99)};
-  tick();if(!reduced)setInterval(tick,2200);
+  const S='stroke="#0c3a66" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"';
+  const GEAR=[
+    {n:"Pulse oximeter (SpO₂)",say:"Pulse oximeter",
+     svg:`<svg viewBox="0 0 100 100"><rect x="52" y="44" width="40" height="13" rx="6.5" fill="#fcd5b5" stroke="#0c3a66" stroke-width="3"/><rect x="12" y="32" width="56" height="38" rx="14" fill="#e0f2fe" ${S}/><rect x="20" y="40" width="30" height="20" rx="4" fill="#0c3a66"/><text x="35" y="55" text-anchor="middle" font-size="14" font-weight="800" fill="#4ade80" font-family="Arial">98</text><circle cx="59" cy="45" r="3.5" fill="#ef4444"/><path d="M56 62h8" fill="none" ${S}/></svg>`,
+     d:"Clips onto a finger and uses light to measure how much oxygen the blood is carrying (SpO₂) and the pulse rate. A normal SpO₂ is usually 95–100%.",
+     t:"Nursing tip: remove nail polish, warm cold fingers, keep the hand still, and report low readings promptly according to ward protocol."},
+    {n:"Blood pressure machine",say:"Blood pressure machine",
+     svg:`<svg viewBox="0 0 100 100"><circle cx="50" cy="38" r="25" fill="#fff" ${S}/><path d="M32 54a25 25 0 0 1 0-32M68 54a25 25 0 0 0 0-32" stroke="#38bdf8" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M50 38L62 26" fill="none" ${S}/><circle cx="50" cy="38" r="3" fill="#0c3a66"/><rect x="10" y="72" width="34" height="16" rx="5" fill="#38bdf8" stroke="#0c3a66" stroke-width="3"/><path d="M44 80C60 80 62 66 52 64" fill="none" ${S}/><ellipse cx="78" cy="78" rx="10" ry="13" fill="#ef4444" stroke="#0c3a66" stroke-width="3"/><path d="M70 70C66 66 58 66 52 64" fill="none" ${S}/></svg>`,
+     d:"Measures the force of blood pushing against the artery walls, as two numbers: systolic over diastolic. A normal adult reading is about 120/80 mmHg.",
+     t:"Nursing tip: let the patient rest first, use the right cuff size, keep the arm at heart level, and do not talk during the reading."},
+    {n:"Respiration rate monitor",say:"Respiration rate monitor",
+     svg:`<svg viewBox="0 0 100 100"><rect x="12" y="20" width="76" height="50" rx="9" fill="#0c3a66" stroke="#0c3a66" stroke-width="3"/><path d="M18 50c6-14 10-14 16 0s10 14 16 0 10-14 16 0 6 8 10 2" fill="none" stroke="#38bdf8" stroke-width="3.5" stroke-linecap="round"/><text x="20" y="35" font-size="11" font-weight="800" fill="#fff" font-family="Arial">RR 16</text><rect x="42" y="70" width="16" height="10" fill="#94a3b8"/><rect x="30" y="80" width="40" height="7" rx="3" fill="#94a3b8"/></svg>`,
+     d:"Counts how many breaths a patient takes each minute. A normal resting adult breathes about 12 to 20 times a minute.",
+     t:"Nursing tip: count for a full minute while the patient is unaware you are counting, and note effort, depth and any noise."},
+    {n:"ECG (electrocardiogram) machine",say:"E C G, electrocardiogram machine",
+     svg:`<svg viewBox="0 0 100 100"><rect x="62" y="12" width="26" height="22" rx="3" fill="#fff" ${S}/><path d="M67 20h16M67 26h12" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/><rect x="10" y="34" width="80" height="44" rx="9" fill="#e0f2fe" ${S}/><rect x="17" y="41" width="44" height="30" rx="5" fill="#0c3a66"/><path d="M20 58h8l3-9 5 18 4-14 3 5h14" fill="none" stroke="#4ade80" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="73" cy="52" r="5" fill="#ef4444"/><circle cx="73" cy="66" r="4" fill="#38bdf8"/><path d="M30 78c-4 8-10 8-14 12M50 78c0 10 6 10 6 12" fill="none" ${S}/></svg>`,
+     d:"Records the electrical activity of the heart through sticky electrodes on the chest, arms and legs. It helps detect irregular rhythms and heart attacks.",
+     t:"Nursing tip: explain the procedure, ask the patient to lie still and relaxed, and keep the skin clean and dry so the electrodes stick."},
+    {n:"Stethoscope",say:"Stethoscope",
+     svg:`<svg viewBox="0 0 100 100"><circle cx="30" cy="14" r="5" fill="#94a3b8" stroke="#0c3a66" stroke-width="2.5"/><circle cx="70" cy="14" r="5" fill="#94a3b8" stroke="#0c3a66" stroke-width="2.5"/><path d="M30 19v22a20 20 0 0 0 40 0V19" fill="none" ${S}/><path d="M50 61v8c0 10 8 14 16 14" fill="none" ${S}/><circle cx="72" cy="80" r="12" fill="#cbd5e1" stroke="#0c3a66" stroke-width="3"/><circle cx="72" cy="80" r="6" fill="#fff" stroke="#0c3a66" stroke-width="2.5"/></svg>`,
+     d:"Used to listen to the heart, the lungs and the bowel sounds, and to hear the pulse sounds when taking a blood pressure by hand.",
+     t:"Nursing tip: warm the diaphragm, place it on bare skin, and clean it with an alcohol wipe between patients."},
+    {n:"Procedure trolley",say:"Procedure trolley",
+     svg:`<svg viewBox="0 0 100 100"><rect x="14" y="26" width="72" height="7" rx="3" fill="#cbd5e1" ${S}/><rect x="14" y="60" width="72" height="6" rx="3" fill="#cbd5e1" ${S}/><path d="M20 33v50M80 33v50" fill="none" ${S}/><path d="M86 30h8" fill="none" ${S}/><rect x="24" y="12" width="14" height="14" rx="3" fill="#38bdf8" stroke="#0c3a66" stroke-width="2.5"/><rect x="44" y="16" width="20" height="10" rx="3" fill="#fff" stroke="#0c3a66" stroke-width="2.5"/><circle cx="20" cy="88" r="6" fill="#0c3a66"/><circle cx="80" cy="88" r="6" fill="#0c3a66"/></svg>`,
+     d:"A wheeled trolley that carries everything needed for a procedure, such as dressings, instruments and gloves, so the nurse has it all within reach.",
+     t:"Nursing tip: clean it before and after use, keep sterile items on the top shelf and used items on the lower one, and wash your hands first."},
+    {n:"Kidney dish",say:"Kidney dish",
+     svg:`<svg viewBox="0 0 100 100"><path d="M10 58C8 36 36 28 62 32c22 4 32 18 22 30-10 11-28 4-40 6-16 2-32 0-34-10z" fill="#cbd5e1" ${S}/><path d="M22 54c0-12 20-16 40-13 14 2 20 10 14 16-8 8-22 2-34 4-10 1-20 0-20-7z" fill="#f1f5f9" stroke="#0c3a66" stroke-width="2.5"/></svg>`,
+     d:"A small curved tray shaped like a kidney. It holds used swabs, dressings and instruments during a procedure, and can be used if a patient vomits.",
+     t:"Nursing tip: keep it clean, empty and rinse it after each use, and dispose of its contents safely."},
+    {n:"Syringe",say:"Syringe",
+     svg:`<svg viewBox="0 0 100 100"><g transform="rotate(-38 50 50)"><rect x="4" y="46" width="12" height="8" rx="2" fill="#94a3b8" stroke="#0c3a66" stroke-width="2.5"/><path d="M16 50h14" fill="none" ${S}/><rect x="30" y="41" width="40" height="18" rx="4" fill="#e0f2fe" ${S}/><rect x="40" y="44" width="28" height="12" rx="2" fill="#38bdf8"/><path d="M46 41v6M54 41v6M62 41v6" stroke="#0c3a66" stroke-width="2"/><rect x="28" y="38" width="3" height="24" rx="1.5" fill="#0c3a66"/><path d="M70 50h8M78 50l14 0" fill="none" ${S}/></g></svg>`,
+     d:"Used to draw up and give medicines or take blood. The barrel is marked in millilitres so the exact dose can be measured.",
+     t:"Nursing tip: check the rights of medication administration, never recap a used needle, and put it straight into the sharps box."}
+  ];
+  const ring=$("#gring"),gear=$("#gear"),info=$("#ginfo"),N=GEAR.length;
+  ring.innerHTML=GEAR.map((g,i)=>`<button class="gi" type="button" data-i="${i}" aria-label="${g.n}"><span class="gplate">${g.svg}</span><span class="glab">${g.n}</span></button>`).join("");
+  const els=[...ring.children];
+  const G={a:0,sel:-1,vis:false,run:false,hover:false,drag:false,moved:false,sx:0,sa:0,noClick:false};
+  const TAU=Math.PI*2;
+  function frame(){
+    G.run=false;if(!G.vis)return;
+    if(!G.drag){
+      if(G.sel>=0){const tg=-G.sel*TAU/N;let df=((tg-G.a+Math.PI)%TAU+TAU)%TAU-Math.PI;G.a+=df*.12}   /* bring the tapped one to the front */
+      else if(!G.hover)G.a+=.0045;                                                                      /* keeps going round */
+    }
+    const w=gear.clientWidth,Rx=Math.min(w*.36,175),Ry=Math.min(w*.1,42),sel=G.sel;
+    for(let i=0;i<N;i++){
+      const ang=G.a+i*TAU/N,s=Math.sin(ang),c=Math.cos(ang),t=(c+1)/2;
+      let x=s*Rx,y=c*Ry,sc=.55+.45*t,op=.4+.6*t;
+      if(i===sel){y-=62;sc=1.38;op=1}else if(sel>=0)op*=.5;
+      const el=els[i];
+      el.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${sc.toFixed(3)})`;
+      el.style.opacity=op.toFixed(2);
+      el.style.filter=t<.6?`blur(${((.6-t)*2.6).toFixed(1)}px)`:"none";
+      el.style.zIndex=i===sel?300:Math.round(t*100);
+      el.classList.toggle("front",t>.9&&sel<0);el.classList.toggle("sel",i===sel);
+    }
+    G.run=true;requestAnimationFrame(frame);
+  }
+  const kick=()=>{if(G.vis&&!G.run){G.run=true;requestAnimationFrame(frame)}};
+  new IntersectionObserver(e=>{G.vis=e[0].isIntersecting;kick()},{threshold:.05}).observe(gear);
+  function speak(stop){try{speechSynthesis.cancel()}catch{}$("#giSay").textContent="🔊 Listen"}
+  function open(i){
+    G.sel=i;const g=GEAR[i];
+    $("#giT").textContent=g.n;$("#giP").textContent=g.d;$("#giTip").textContent=g.t;
+    info.hidden=false;$("#gcap").style.opacity=0;speak();kick();
+  }
+  function close(){G.sel=-1;info.hidden=true;$("#gcap").style.opacity=1;speak();kick()}
+  ring.addEventListener("click",e=>{
+    if(G.noClick)return;
+    const b=e.target.closest(".gi");if(!b)return;
+    const i=+b.dataset.i;if(G.sel===i)close();else open(i);
+  });
+  $("#giX").onclick=close;
+  addEventListener("keydown",e=>{if(e.key==="Escape"&&G.sel>=0)close()});
+  $("#giSay").onclick=()=>{
+    if(!("speechSynthesis" in window))return toast("Your browser cannot read aloud.");
+    if(speechSynthesis.speaking){speak();return}
+    const g=GEAR[G.sel];if(!g)return;
+    const u=new SpeechSynthesisUtterance(g.say+". "+g.d+" "+g.t);u.lang="en-GB";u.rate=.95;
+    u.onend=()=>{$("#giSay").textContent="🔊 Listen"};
+    $("#giSay").textContent="⏹ Stop";speechSynthesis.speak(u);
+  };
+  gear.addEventListener("pointerenter",e=>{if(e.pointerType==="mouse")G.hover=true});
+  gear.addEventListener("pointerleave",()=>{G.hover=false});
+  /* drag to spin it yourself */
+  ring.addEventListener("pointerdown",e=>{if(e.button>0)return;G.drag=true;G.moved=false;G.sx=e.clientX;G.sa=G.a});
+  addEventListener("pointermove",e=>{if(!G.drag)return;const dx=e.clientX-G.sx;if(Math.abs(dx)>6)G.moved=true;if(G.moved){G.sel>=0&&close();G.a=G.sa+dx*.012}});
+  addEventListener("pointerup",()=>{if(!G.drag)return;G.drag=false;if(G.moved){G.noClick=true;setTimeout(()=>{G.noClick=false},60)}});
+  addEventListener("pointercancel",()=>{G.drag=false});
 })();
 
 function renderBrandAdmin(){
