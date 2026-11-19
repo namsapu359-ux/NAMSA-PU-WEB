@@ -722,7 +722,7 @@ textarea{resize:vertical;min-height:84px}
             <input type="text" id="mName" placeholder="Name (optional)" autocomplete="off" aria-label="Student name">
             <input type="text" id="mAmt" inputmode="decimal" placeholder="Amount paid (GH₵)" aria-label="Amount paid" style="min-width:150px">
             <select id="mShirt" aria-label="T-shirt" style="min-width:170px"><option value="no">T-shirt: not paid</option><option value="yes">T-shirt: paid</option></select>
-            <select id="mStyle" aria-label="Style" style="min-width:130px"><option value="">Style</option><option>T-shirt</option><option>Lacoste</option></select>
+            <select id="mStyle" aria-label="Style" style="min-width:130px"><option value="">Style</option><option value="T-shirt">T-shirt</option><option value="Lacoste">Lacoste</option></select>
             <select id="mColor" aria-label="Colour" style="min-width:120px"><option value="">Colour</option><option>White</option><option>Blue</option></select>
             <select id="mSize" aria-label="T-shirt size" style="min-width:140px"><option value="">T-shirt size</option><option>Small</option><option>Medium</option><option>Large</option><option>XL</option><option>2XL</option><option>3XL</option></select>
             <button class="btn" id="mAdd">Add student</button>
@@ -869,7 +869,7 @@ textarea{resize:vertical;min-height:84px}
     <label>What would you like to pay for?</label><div id="payOpts"></div>
     <div class="hint" style="margin:2px 0 0">Tap an amount to select it, and tap it again to deselect it. Only want a T-shirt? Leave the amount empty and tick the T-shirt below.</div>
     <label class="chk" style="margin-top:8px"><input type="checkbox" id="payShirt"> <span id="payShirtT">➕ Add a NAMSA T-shirt</span></label>
-    <div id="payShirtBox" hidden><label for="payShirtStyle">Style (T-shirt or Lacoste)</label><select id="payShirtStyle"><option value="">Select style</option><option>T-shirt</option><option>Lacoste</option></select>
+    <div id="payShirtBox" hidden><label for="payShirtStyle">Style (T-shirt or Lacoste)</label><select id="payShirtStyle"><option value="">Select style</option><option value="T-shirt">T-shirt</option><option value="Lacoste">Lacoste</option></select>
     <label for="payShirtColor">Colour preference</label><select id="payShirtColor"><option value="">Select colour</option><option>White</option><option>Blue</option></select>
     <label for="payShirtSize">Size</label><select id="payShirtSize"><option value="">Select size</option><option>Small</option><option>Medium</option><option>Large</option><option>XL</option><option>2XL</option><option>3XL</option></select></div>
     <div class="hint" id="payTotal" style="margin:6px 0 0;font-weight:700"></div>
@@ -1869,7 +1869,7 @@ function loadPaystack(){
   });
 }
 /* T-shirt GH₵50, Lacoste GH₵70; Level 100 pays T-shirt GH₵20, Lacoste GH₵30 (all four prices can be changed in Admin > Dues) */
-const shirtPriceFor=(style,level)=>{const l1=String(level)==="100";return style==="Lacoste"?num(l1?settings.lacoste_price_l100:settings.lacoste_price,l1?30:70):num(l1?settings.tshirt_price_l100:settings.tshirt_price,l1?20:50)};
+const shirtPriceFor=(style,level)=>{const l1=String(level)==="100";return String(style).startsWith("Lacoste")?num(l1?settings.lacoste_price_l100:settings.lacoste_price,l1?30:70):num(l1?settings.tshirt_price_l100:settings.tshirt_price,l1?20:50)};
 const shirtPrice=()=>shirtPriceFor($("#payShirtStyle")?$("#payShirtStyle").value:"",$("#pcLv")?$("#pcLv").value:"");
 /* ---- class details: year batch, intake, program, level ---- */
 const YEARS=["2023","2024","2025","2026","2027","2028","2029","2030"],INTAKES=["January","September"],PROGRAMS=["Regular","Access","Top-up"],PTYPES=["Nursing","Midwifery"],LEVELS=["100","200","300","400"];
