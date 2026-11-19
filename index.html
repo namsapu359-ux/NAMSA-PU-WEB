@@ -656,7 +656,10 @@ textarea{resize:vertical;min-height:84px}
         <label for="psUrl" style="margin-top:0">Paystack payment link</label><input type="url" id="psUrl" placeholder="https://paystack.com/pay/your-page">
         <label for="psFull">Full NAMSA dues (GH₵)</label><input type="text" id="psFull" inputmode="decimal" placeholder="100">
         <label for="psMin">Minimum paid to open locked committees (GH₵)</label><input type="text" id="psMin" inputmode="decimal" placeholder="50">
-        <label for="psShirt">T-shirt price (GH₵), added when a student taps “+ T-shirt”</label><input type="text" id="psShirt" inputmode="decimal" placeholder="50">
+        <label for="psShirt">T-shirt price (GH₵)</label><input type="text" id="psShirt" inputmode="decimal" placeholder="50">
+        <label for="psLaco">Lacoste price (GH₵)</label><input type="text" id="psLaco" inputmode="decimal" placeholder="70">
+        <label for="psShirt100">Level 100 T-shirt price (GH₵)</label><input type="text" id="psShirt100" inputmode="decimal" placeholder="20">
+        <label for="psLaco100">Level 100 Lacoste price (GH₵)</label><input type="text" id="psLaco100" inputmode="decimal" placeholder="30">
         <div class="row"><button class="btn" id="paySave">Save payment settings</button></div>
       </div>
       <div class="panel">
@@ -1865,7 +1868,9 @@ function loadPaystack(){
     document.head.appendChild(sc);
   });
 }
-const shirtPrice=()=>num(settings.tshirt_price,50);
+/* T-shirt GH₵50, Lacoste GH₵70; Level 100 pays T-shirt GH₵20, Lacoste GH₵30 (all four prices can be changed in Admin > Dues) */
+const shirtPriceFor=(style,level)=>{const l1=String(level)==="100";return style==="Lacoste"?num(l1?settings.lacoste_price_l100:settings.lacoste_price,l1?30:70):num(l1?settings.tshirt_price_l100:settings.tshirt_price,l1?20:50)};
+const shirtPrice=()=>shirtPriceFor($("#payShirtStyle")?$("#payShirtStyle").value:"",$("#pcLv")?$("#pcLv").value:"");
 /* ---- class details: year batch, intake, program, level ---- */
 const YEARS=["2023","2024","2025","2026","2027","2028","2029","2030"],INTAKES=["January","September"],PROGRAMS=["Regular","Access","Top-up"],PTYPES=["Nursing","Midwifery"],LEVELS=["100","200","300","400"];
 function fillClass(p,all){
@@ -1883,6 +1888,9 @@ function payTotal(){
   return a+($("#payShirt").checked?shirtPrice():0);
 }
 function updatePayTotal(){
+  const lv=$("#pcLv").value,ps=$("#payShirtStyle").options;
+  ps[1].textContent="T-shirt ("+cedi(shirtPriceFor("T-shirt",lv))+")";ps[2].textContent="Lacoste ("+cedi(shirtPriceFor("Lacoste",lv))+")";
+  $("#payShirtT").textContent="➕ Add a T-shirt ("+cedi(shirtPriceFor("T-shirt",lv))+") or Lacoste ("+cedi(shirtPriceFor("Lacoste",lv))+")";
   $("#payShirtBox").hidden=!$("#payShirt").checked;
   const t=payTotal();
   $("#payTotal").textContent=t>0?"Total to pay: "+cedi(t)+($("#payShirt").checked&&t===shirtPrice()?" (T-shirt only)":""):"Choose an amount, or tick the T-shirt";
@@ -1893,7 +1901,7 @@ $("#payO").addEventListener("change",e=>{
   if(e.target.name==="payAmt"){
     if(e.target.checked)document.querySelectorAll('input[name="payAmt"]').forEach(x=>{if(x!==e.target)x.checked=false});
     updatePayTotal();
-  }else if(e.target.id==="payShirt")updatePayTotal();
+  }else if(e.target.id==="payShirt"||e.target.id==="payShirtStyle"||e.target.id==="pcLv")updatePayTotal();
 });
 function openPay(idPrefill,paid,min,full){
   const pct=Math.round(min/full*100),opts=[];
@@ -2006,14 +2014,15 @@ function renderPayAdmin(){
   $("#psUrl").value=settings.paystack_url||"";
   $("#psFull").value=settings.dues_full||"100";
   $("#psMin").value=settings.dues_min||"50";
-  $("#psShirt").value=settings.tshirt_price||"50";
+  $("#psShirt").value=settings.tshirt_price||"50";$("#psLaco").value=settings.lacoste_price||"70";
+  $("#psShirt100").value=settings.tshirt_price_l100||"20";$("#psLaco100").value=settings.lacoste_price_l100||"30";
 }
 $("#paySave").onclick=async()=>{
-  const url=$("#psUrl").value.trim(),full=parseFloat($("#psFull").value),min=parseFloat($("#psMin").value),shirt=parseFloat($("#psShirt").value);
+  const url=$("#psUrl").value.trim(),full=parseFloat($("#psFull").value),min=parseFloat($("#psMin").value),shirt=parseFloat($("#psShirt").value),laco=parseFloat($("#psLaco").value),shirt1=parseFloat($("#psShirt100").value),laco1=parseFloat($("#psLaco100").value);
   if(url&&!safeUrl(url))return toast("The payment link must start with https://");
   if(!(full>0)||!(min>0)||min>full)return toast("Enter valid amounts. The minimum cannot be more than the full dues.");
-  if(!(shirt>0))return toast("Enter the T-shirt price.");
-  const {error}=await sb.from(CONFIG.SETTINGS).upsert([{key:"paystack_url",value:url},{key:"dues_full",value:String(full)},{key:"dues_min",value:String(min)},{key:"tshirt_price",value:String(shirt)}]);
+  if(!(shirt>0&&laco>0&&shirt1>0&&laco1>0))return toast("Enter all four T-shirt and Lacoste prices.");
+  const {error}=await sb.from(CONFIG.SETTINGS).upsert([{key:"paystack_url",value:url},{key:"dues_full",value:String(full)},{key:"dues_min",value:String(min)},{key:"tshirt_price",value:String(shirt)},{key:"lacoste_price",value:String(laco)},{key:"tshirt_price_l100",value:String(shirt1)},{key:"lacoste_price_l100",value:String(laco1)}]);
   if(error)return toast("Failed: "+error.message);
   toast("Payment settings saved");load();
 };
@@ -2152,7 +2161,7 @@ async function importDues(f,cls){
       if(u.error)throw u.error;
     }
     const shirts=[...map].filter(([,v])=>v.shirt).map(([k,v])=>[k,v.name,v.size,v.style,v.color]);
-    const sErr=shirts.length?await saveShirts(shirts,true):"";
+    const sErr=shirts.length?await saveShirts(shirts,true,cls&&cls.level):"";
     toast("Saved "+all.length+" students"+(shirts.length?", "+shirts.length+" with T-shirt":"")+(sErr?" (T-shirts not saved: "+sErr+")":""));
     refreshDues();
   }catch(x){toast(x.message==="Cancelled."?"Upload cancelled":"Failed: "+x.message)}
@@ -2195,12 +2204,12 @@ $("#duesClr").onclick=async()=>{
   toast("Dues list deleted. You can now upload the new list.");refreshDues();
 };
 /* records (or clears) a manually added T-shirt payment; students who paid for a T-shirt online keep theirs */
-async function saveShirts(pairs,paid){
+async function saveShirts(pairs,paid,level){
   if(!pairs.length)return "";
   if(paid){
-    const now=new Date().toISOString(),price=shirtPrice();
+    const now=new Date().toISOString();
     for(let i=0;i<pairs.length;i+=500){
-      const {error}=await sb.from(CONFIG.TSHIRTS).upsert(pairs.slice(i,i+500).map(([k,n,z,st,co])=>({reference:"ADMIN-"+k,index_number:k,student_name:n||null,amount:price,paid_at:now,size:z||null,style:st||null,color:co||null})),{onConflict:"reference"});
+      const {error}=await sb.from(CONFIG.TSHIRTS).upsert(pairs.slice(i,i+500).map(([k,n,z,st,co])=>({reference:"ADMIN-"+k,index_number:k,student_name:n||null,amount:shirtPriceFor(st,level),paid_at:now,size:z||null,style:st||null,color:co||null})),{onConflict:"reference"});
       if(error)return error.message;
     }
   }else{
@@ -2222,7 +2231,7 @@ $("#mAdd").onclick=async()=>{
   const rows=ids.map(k=>name?{index_number:k,student_name:name,amount_paid:amt,...cv}:{index_number:k,amount_paid:amt,...cv});
   const {error}=await sb.from(CONFIG.DUES).upsert(rows);
   if(error)return toast("Failed: "+error.message);
-  const sErr=await saveShirts(ids.map(k=>[k,name,$("#mSize").value,$("#mStyle").value,$("#mColor").value]),$("#mShirt").value==="yes");
+  const sErr=await saveShirts(ids.map(k=>[k,name,$("#mSize").value,$("#mStyle").value,$("#mColor").value]),$("#mShirt").value==="yes",cv.level);
   toast(ids.length+(ids.length>1?" students":" student")+" saved with "+cedi(amt)+($("#mShirt").value==="yes"?", T-shirt paid":"")+(sErr?" (T-shirt not saved: "+sErr+")":""));
   $("#mIdx").value="";$("#mName").value="";$("#mAmt").value="";$("#mShirt").value="no";$("#mSize").value="";$("#mStyle").value="";$("#mColor").value="";refreshDues();
 };
