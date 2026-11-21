@@ -448,7 +448,29 @@ textarea{resize:vertical;min-height:84px}
 .gx{position:absolute;top:8px;right:10px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;font-size:.9rem}
 @keyframes ginUp{from{opacity:0;transform:translateY(40px) scale(.96)}}
 @media(max-width:520px){.gear{height:330px}.gi{width:82px;margin:-52px 0 0 -41px}.gplate{width:76px;height:76px;border-radius:22px}.gplate svg{width:60px;height:60px}.ginfo p{font-size:.8rem}}
-/* ================= PHONE & TABLET POLISH ================= */
+/* ---- NAMSA store ---- */
+#storeO{align-items:stretch;justify-content:center;padding:0}
+.storepage{background:#fff;width:min(1100px,100%);height:100%;overflow:auto;position:relative;-webkit-overflow-scrolling:touch}
+.sthead{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:#fff;border-bottom:1px solid var(--line)}
+.sthead h2{margin:0;font-size:1.15rem;text-align:center;flex:1}
+.stgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;padding:16px}
+.stcard{border:1px solid var(--line);border-radius:20px;overflow:hidden;background:#fff;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.stimg{aspect-ratio:1/1;background:#eaf3fb;display:grid;place-items:center;font-size:3rem}
+.stimg img{width:100%;height:100%;object-fit:cover;display:block}
+.stbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
+.stbody p{margin:0;color:var(--muted);font-size:.88rem}
+.stprice{font-weight:800;font-size:1.1rem}.stprice small{font-weight:600;color:#0f5c93;margin-left:6px}
+.stbody .btn{margin-top:auto}
+.stwrap{padding:16px}
+.stline{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.stline img,.stline .ph{width:56px;height:56px;border-radius:12px;object-fit:cover;background:#eaf3fb;display:grid;place-items:center;flex:none}
+.stline .mid{flex:1;min-width:0}.stline .mid small{color:var(--muted);display:block}
+.stqty{display:inline-flex;align-items:center;gap:8px}.stqty button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:1.1rem;cursor:pointer}
+.sttotal{display:flex;justify-content:space-between;font-weight:800;font-size:1.15rem;padding:14px 0}
+@media(max-width:720px){.stgrid{grid-template-columns:1fr 1fr;gap:12px;padding:12px}.sthead h2{font-size:1rem}.sthead .btn{padding:10px 12px}}
+/* the old fixed-item shop controls are replaced by the Store; keep them out of sight */
+#psShirt,#psLaco,#psShirt100,#psLaco100,#psBook,#psCap,#psTote,label[for="psShirt"],label[for="psLaco"],label[for="psShirt100"],label[for="psLaco100"],label[for="psBook"],label[for="psCap"],label[for="psTote"],#mShirt,#mSize,#mStyle,#mColor,#mBook,#mCap,#mTote{display:none!important}
+/* ================= PHONE & TABLET POLISH =================
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 html,body{overflow-x:hidden}
 img,video,svg{max-width:100%}
@@ -528,6 +550,7 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
       <a href="#announcements" id="navAnn" hidden>Announcements</a>
       <a href="#activities" id="navAct" hidden>Activities</a>
       <a href="#contact" id="navCon" hidden>Contact</a>
+      <a href="#" id="navStore">Store</a>
       <a href="#leadership">Leadership</a>
       <a href="#committees">Committees</a>
       <a href="#about">About</a>
@@ -664,6 +687,7 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
       <button data-tab="activities">Activities</button>
       <button data-tab="news">Announcements</button>
       <button data-tab="contacts">Contacts</button>
+      <button data-tab="store">Store</button>
       <button data-tab="dues">Dues &amp; payments</button>
       <button data-tab="security">Security</button>
       <button data-tab="admins">Team &amp; roles</button>
@@ -725,6 +749,27 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
         </div>
       </div>
       <div class="panel"><div id="acList"></div></div>
+    </div>
+
+    <div class="atab" id="tab-store">
+      <div class="panel">
+        <div class="adm-top"><div><h2>NAMSA Store</h2><p style="color:var(--muted)">Add each item with its picture and price. Students see it in the Store, add it to their cart and pay online. Pictures are shrunk to under 50 KB automatically.</p></div></div>
+        <input type="hidden" id="prId">
+        <label for="prName">Item name</label><input type="text" id="prName" maxlength="80" placeholder="e.g. NAMSA T-shirt">
+        <label for="prDesc">Short description (optional)</label><input type="text" id="prDesc" maxlength="200">
+        <label for="prPrice">Price (GH₵)</label><input type="text" id="prPrice" inputmode="decimal" maxlength="10">
+        <label for="prPrice100">Level 100 price (GH₵, optional: leave empty if the price is the same)</label><input type="text" id="prPrice100" inputmode="decimal" maxlength="10">
+        <label for="prSizes">Sizes (optional, separate with commas, e.g. Small, Medium, Large, XL)</label><input type="text" id="prSizes" maxlength="120">
+        <label for="prColors">Colours (optional, separate with commas, e.g. Blue, White)</label><input type="text" id="prColors" maxlength="120">
+        <div class="row" style="margin-top:10px"><label class="btn alt">📷 Choose picture<input type="file" id="prImg" accept="image/*" hidden></label><span class="hint" id="prImgName" style="align-self:center"></span></div>
+        <label class="chk" style="margin-top:8px"><input type="checkbox" id="prActive" checked> Show this item in the store</label>
+        <div class="row" style="margin-top:12px"><button class="btn" id="prSave" type="button">Save item</button><button class="btn alt" id="prCancel" type="button" hidden>Cancel edit</button></div>
+      </div>
+      <div class="panel"><h3 style="margin:0 0 8px">Items in the store</h3><div id="prList"></div></div>
+      <div class="panel">
+        <div class="adm-top"><h3 style="margin:0">Orders</h3><div class="adm-acts"><button class="btn alt" id="orRefresh" type="button">Refresh</button><button class="btn" id="orDl" type="button">Download orders (Excel)</button></div></div>
+        <div id="orList" style="margin-top:10px"></div>
+      </div>
     </div>
 
     <div class="atab" id="tab-contacts">
@@ -946,6 +991,18 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
   </div>
 </div>
 
+<!-- NAMSA store -->
+<div class="overlay" id="storeO">
+  <div class="storepage" role="dialog" aria-label="NAMSA store">
+    <div class="sthead">
+      <button class="btn alt" id="stClose" type="button">✕ Close</button>
+      <h2 id="stTitle">🛍️ NAMSA Store</h2>
+      <button class="btn" id="stCartBtn" type="button">🛒 Cart (<span id="stCount">0</span>)</button>
+    </div>
+    <div id="stView"></div>
+  </div>
+</div>
+
 <!-- Already paid? verify payment -->
 <div class="overlay" id="claimO">
   <div class="modal" role="dialog" aria-label="Verify my payment">
@@ -1077,6 +1134,8 @@ const CONFIG = {
   TSHIRTS: "namsa_portal_tshirts",
   BOOKS: "namsa_portal_greenbooks",
   EXTRAS: "namsa_portal_extras",
+  PRODUCTS: "namsa_portal_products",
+  ORDERS: "namsa_portal_orders",
   CONTACTS: "namsa_portal_contacts",
   ACTIVITIES: "namsa_portal_activities",
   NEWS: "namsa_portal_announcements",
@@ -1143,8 +1202,10 @@ async function load(){
     news=n1.error?[]:n1.data;
     const c1=await sb.from(CONFIG.CONTACTS).select("*").order("sort",{ascending:true}).order("id",{ascending:true});
     contacts=c1.error?[]:c1.data;
+    const pr1=await sb.from(CONFIG.PRODUCTS).select("*").eq("active",true).order("sort",{ascending:true}).order("id",{ascending:true});
+    products=pr1.error?[]:pr1.data;
   }
-  render();renderPeople();renderAdmin();renderBrand();renderSlides();renderCampus();renderContacts();
+  render();renderPeople();renderAdmin();renderBrand();renderSlides();renderCampus();renderContacts();updateCount();if($("#storeO").classList.contains("show")&&stMode==="shop")renderStoreView();
   loadLinks();
 }
 
@@ -1469,7 +1530,7 @@ function render(){
 }
 
 function renderAdmin(){
-  if(!session)return;renderPeopleAdmin();renderSlots();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();if(myRole==="super")loadAdmins();renderSecurity();
+  if(!session)return;renderPeopleAdmin();renderSlots();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();if(myRole==="super")loadAdmins();if(myRole==="super"||myRole==="finance")loadStoreAdmin();renderSecurity();
   const fallback=list===DEFAULTS;
   const withLink=list.filter(c=>links[c.id]||c.has_link).length;
   $("#cSummary").textContent=fallback?"":list.length+" committees, "+withLink+" with a link saved";
@@ -2043,11 +2104,6 @@ $("#heroPay").onclick=()=>{
   openStudentModal();
   showPayMessage(0,min,full,"#stuBad","",true);
 };
-/* the shop is a separate space: items only, no dues */
-$("#heroShop").onclick=()=>{
-  const min=num(settings.dues_min,50),full=num(settings.dues_full,100);
-  openPay(stu?stu.label||"":"",0,min,full,"shop");if(stu&&stu.name)$("#payName").value=stu.name;
-};
 /* ---- pay NAMSA dues with the Paystack popup ---- */
 function loadPaystack(){
   return new Promise((res,rej)=>{
@@ -2531,7 +2587,7 @@ $("#adminList").addEventListener("keydown",e=>{
 
 /* ---- team and roles (managed by the server; only a Super admin can open this) ---- */
 const ROLE_NAME={super:"Super admin",finance:"Finance",editor:"Content editor"};
-const TAB_ROLES={committees:["super"],leadership:["super","editor"],pictures:["super","editor"],activities:["super","editor"],news:["super","editor"],contacts:["super","editor"],dues:["super","finance"],security:["super"],admins:["super"]};
+const TAB_ROLES={committees:["super"],leadership:["super","editor"],pictures:["super","editor"],activities:["super","editor"],news:["super","editor"],contacts:["super","editor"],dues:["super","finance"],store:["super","finance"],security:["super"],admins:["super"]};
 let myRole="super";
 function applyRole(){
   document.querySelectorAll("#admTabs button").forEach(b=>{b.hidden=!(TAB_ROLES[b.dataset.tab]||["super"]).includes(myRole)});
@@ -2937,6 +2993,177 @@ $("#q").oninput=render;
 $("#burger").onclick=()=>$("#links").classList.toggle("open");
 document.querySelectorAll(".links a").forEach(a=>a.addEventListener("click",()=>$("#links").classList.remove("open")));
 $("#yr").textContent=new Date().getFullYear();
+/* ===== NAMSA store: pictures, cart and checkout ===== */
+let products=[],CART=[],stLevel="",stMode="shop",stDone=null,stForm={name:"",id:"",email:"",phone:""};
+try{CART=JSON.parse(localStorage.getItem("namsa_cart")||"[]");if(!Array.isArray(CART))CART=[]}catch{CART=[]}
+const saveCart=()=>{try{localStorage.setItem("namsa_cart",JSON.stringify(CART))}catch{}};
+const csv=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
+const unitPrice=(p,lv)=>(lv==="100"&&p.price_l100!=null&&p.price_l100!=="")?Number(p.price_l100):Number(p.price);
+const prodOf=id=>products.find(p=>String(p.id)===String(id));
+const cartLines=lv=>CART.map((c,i)=>{const p=prodOf(c.id);return p?{i,c,p,unit:unitPrice(p,lv),sum:unitPrice(p,lv)*c.qty}:null}).filter(Boolean);
+const cartTotal=lv=>cartLines(lv).reduce((a,l)=>a+l.sum,0);
+const updateCount=()=>{$("#stCount").textContent=CART.reduce((a,c)=>a+c.qty,0)};
+function openStore(){stMode="shop";renderStoreView();open("#storeO");updateCount()}
+function readStForm(){if($("#stName")){stForm={name:$("#stName").value,id:$("#stId").value,email:$("#stEmail").value,phone:$("#stPhone").value}}if($("#stLv"))stLevel=$("#stLv").value}
+function renderStoreView(){
+  const v=$("#stView");if(!v)return;
+  if(stMode==="shop"){
+    $("#stTitle").textContent="🛍️ NAMSA Store";
+    v.innerHTML=products.length?`<div class="stgrid">${products.map(p=>{
+      const img=safeUrl(p.image_url),sz=csv(p.sizes),co=csv(p.colors);
+      return `<div class="stcard" data-pid="${esc(p.id)}"><div class="stimg">${img?`<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:"🛍️"}</div><div class="stbody"><b>${esc(p.name)}</b>${p.description?`<p>${esc(p.description)}</p>`:""}<div class="stprice">${cedi(Number(p.price))}${p.price_l100!=null&&p.price_l100!==""?`<small>Level 100: ${cedi(Number(p.price_l100))}</small>`:""}</div>${sz.length?`<select data-opt="size" aria-label="Size"><option value="">Choose size</option>${sz.map(x=>`<option>${esc(x)}</option>`).join("")}</select>`:""}${co.length?`<select data-opt="color" aria-label="Colour"><option value="">Choose colour</option>${co.map(x=>`<option>${esc(x)}</option>`).join("")}</select>`:""}<button class="btn" data-add="${esc(p.id)}" type="button">Add to cart</button></div></div>`}).join("")}</div>`:'<div class="empty" style="padding:40px 16px;text-align:center">The store is being stocked. Please check back soon.</div>';
+  }else if(stMode==="cart"){
+    $("#stTitle").textContent="🛒 Your cart";
+    const lines=cartLines(stLevel),tot=cartTotal(stLevel);
+    v.innerHTML=`<div class="stwrap"><button class="btn alt" id="stBack" type="button">← Keep shopping</button>
+      ${lines.length?`<div style="margin-top:8px">${lines.map(l=>{const img=safeUrl(l.p.image_url);return `<div class="stline">${img?`<img src="${esc(img)}" alt="">`:'<span class="ph">🛍️</span>'}<div class="mid"><b>${esc(l.p.name)}</b><small>${esc([l.c.size,l.c.color].filter(Boolean).join(" · "))}${[l.c.size,l.c.color].some(Boolean)?" · ":""}${cedi(l.unit)} each</small></div><div class="stqty"><button data-qty="-1" data-i="${l.i}" type="button" aria-label="Less">−</button><b>${l.c.qty}</b><button data-qty="1" data-i="${l.i}" type="button" aria-label="More">+</button></div><b style="min-width:72px;text-align:right">${cedi(l.sum)}</b><button data-rm="${l.i}" type="button" aria-label="Remove" style="border:0;background:none;font-size:1.2rem;cursor:pointer">🗑️</button></div>`}).join("")}</div>
+      <div class="sttotal"><span>Total</span><span>${stLevel?cedi(tot):"Choose your level"}</span></div>
+      <label for="stLv">Your level (some items are cheaper for Level 100)</label><select id="stLv"><option value="">Select level</option>${LEVELS.map(x=>`<option ${stLevel===x?"selected":""}>${x}</option>`).join("")}</select>
+      <label for="stName">Full name</label><input type="text" id="stName" maxlength="120" autocomplete="name" value="${esc(stForm.name)}">
+      <label for="stId">Student ID (index number)</label><input type="text" id="stId" maxlength="40" autocomplete="off" value="${esc(stForm.id)}">
+      <label for="stEmail">Email (your receipt is sent here)</label><input type="email" id="stEmail" maxlength="120" autocomplete="email" value="${esc(stForm.email)}">
+      <label for="stPhone">Phone number (optional, so we can reach you)</label><input type="text" id="stPhone" maxlength="20" inputmode="tel" autocomplete="tel" value="${esc(stForm.phone)}">
+      <div class="err" id="stErr"></div>
+      <div class="row" style="margin-top:12px"><button class="btn" id="stPay" type="button" style="width:100%">${stLevel?"Pay "+cedi(tot)+" with Paystack":"Choose your level to see the total"}</button></div></div>`
+      :'<div class="empty" style="padding:30px 0;text-align:center">Your cart is empty.</div>'}</div>`;
+  }else{
+    $("#stTitle").textContent="✅ Order confirmed";
+    const o=stDone||{items:[]};
+    v.innerHTML=`<div class="stwrap" style="text-align:center"><div style="font-size:3rem">🎉</div><h3>Thank you! Your payment is confirmed.</h3><p class="hint">A receipt has been emailed to you. Show it to a NAMSA executive to collect your items.</p>
+      <div style="text-align:left;max-width:520px;margin:12px auto">${(o.items||[]).map(l=>`<div class="stline"><div class="mid"><b>${esc(l.name)} × ${esc(l.qty)}</b><small>${esc([l.size,l.color].filter(Boolean).join(" · "))}</small></div><b>${cedi(Number(l.sum))}</b></div>`).join("")}<div class="sttotal"><span>Total paid</span><span>${cedi(Number(o.paid||o.total||0))}</span></div><small class="hint">Order number: ${esc(o.reference||"")}</small></div>
+      <button class="btn" id="stBack" type="button">Back to the store</button></div>`;
+  }
+}
+function stAdd(id,card){
+  const p=prodOf(id);if(!p)return;
+  const sz=csv(p.sizes),co=csv(p.colors);
+  const size=card.querySelector('[data-opt="size"]')?card.querySelector('[data-opt="size"]').value:"",color=card.querySelector('[data-opt="color"]')?card.querySelector('[data-opt="color"]').value:"";
+  if(sz.length&&!size)return toast("Choose a size first.");
+  if(co.length&&!color)return toast("Choose a colour first.");
+  const hit=CART.find(c=>String(c.id)===String(id)&&c.size===size&&c.color===color);
+  if(hit)hit.qty=Math.min(10,hit.qty+1);else CART.push({id:p.id,qty:1,size,color});
+  saveCart();updateCount();toast("Added to your cart");
+}
+$("#storeO").addEventListener("click",e=>{
+  const t=e.target;
+  if(t.closest("#stClose")){close();return}
+  if(t.closest("#stCartBtn")){readStForm();stMode="cart";renderStoreView();return}
+  if(t.closest("#stBack")){readStForm();stMode="shop";renderStoreView();return}
+  const add=t.closest("[data-add]");if(add){stAdd(add.dataset.add,add.closest(".stcard"));return}
+  const q=t.closest("[data-qty]");if(q){readStForm();const c=CART[+q.dataset.i];if(c){c.qty=Math.max(0,Math.min(10,c.qty+(+q.dataset.qty)));if(!c.qty)CART.splice(+q.dataset.i,1)}saveCart();updateCount();renderStoreView();return}
+  const rm=t.closest("[data-rm]");if(rm){readStForm();CART.splice(+rm.dataset.rm,1);saveCart();updateCount();renderStoreView();return}
+  if(t.closest("#stPay"))stCheckout();
+});
+$("#storeO").addEventListener("change",e=>{if(e.target.id==="stLv"){readStForm();renderStoreView()}});
+$("#heroShop").onclick=openStore;
+$("#navStore").onclick=e=>{e.preventDefault();openStore()};
+async function stCheckout(){
+  readStForm();
+  const err=m=>{const x=$("#stErr");if(x)x.textContent=m};
+  const lines=cartLines(stLevel);
+  if(!lines.length)return err("Your cart is empty.");
+  if(!stLevel)return err("Choose your level.");
+  const name=stForm.name.trim().replace(/\s+/g," "),idLabel=stForm.id.trim(),email=stForm.email.trim(),phone=stForm.phone.trim();
+  if(name.length<3)return err("Enter your full name.");
+  if(!normIdx(idLabel))return err("Enter your student ID.");
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return err("Enter a valid email address for your receipt.");
+  if(phone&&!/^[+0-9 ()-]{7,20}$/.test(phone))return err("The phone number may only have digits, spaces, + ( ) -");
+  const total=cartTotal(stLevel);
+  if(!(total>0))return err("The total is not valid.");
+  if(!CONFIG.PAYSTACK_PUBLIC_KEY)return err("Online payment is not set up yet.");
+  try{await loadPaystack()}catch(x){return err(x.message)}
+  err("");
+  const rb=new Uint32Array(2);crypto.getRandomValues(rb);
+  const ref="NSTORE"+Date.now()+rb[0].toString(36)+rb[1].toString(36);let paid=false;
+  try{localStorage.setItem("namsa_store_ref",ref)}catch{}
+  PaystackPop.setup({
+    key:CONFIG.PAYSTACK_PUBLIC_KEY,email,amount:Math.round(total*100),currency:"GHS",ref,
+    metadata:{custom_fields:[{display_name:"Store order",variable_name:"store",value:"yes"},{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"Phone",variable_name:"phone",value:phone},{display_name:"Level",variable_name:"level",value:stLevel},{display_name:"Cart",variable_name:"cart",value:JSON.stringify(CART.map(c=>({p:c.id,q:c.qty,s:c.size||"",c:c.color||""})))}]},
+    callback:function(resp){paid=true;verifyOrder((resp&&resp.reference)||ref)},
+    onClose:function(){if(!paid){err("Checking whether your payment went through…");verifyOrder(ref,0,true).then(ok=>{if(!ok)err("Payment window closed. If you already paid, wait a minute and reopen the store: your order will be confirmed automatically.")})}}
+  }).openIframe();
+}
+async function verifyOrder(ref,n=0,silent=false){
+  const err=m=>{const x=$("#stErr");if(x)x.textContent=m};
+  if(!silent)err(n?"Still confirming your payment… ("+n+")":"Confirming your payment…");
+  const r=await sso("/store/verify",{reference:ref});
+  if(r.ok&&r.order){
+    try{localStorage.removeItem("namsa_store_ref")}catch{}
+    CART=[];saveCart();updateCount();stDone=r.order;stMode="done";renderStoreView();open("#storeO");
+    return true;
+  }
+  if(silent)return false;
+  if((r.status===0||r.reason==="not_paid"||r.reason==="paystack")&&n<5){setTimeout(()=>verifyOrder(ref,n+1),3000);return false}
+  err((r.error||"We could not confirm the payment yet.")+" Your payment is safe. Reopen the store in a minute and your order will be confirmed automatically.");
+  return false;
+}
+/* if the page was closed right after paying, the order is confirmed when the site opens again */
+setTimeout(()=>{try{const pr=localStorage.getItem("namsa_store_ref");if(pr){localStorage.removeItem("namsa_store_ref");verifyOrder(pr,0,true)}}catch{}},2000);
+
+/* ===== store admin: items with pictures, and orders ===== */
+let adminProducts=[];
+async function loadStoreAdmin(){
+  if(!sb||!session||!$("#prList"))return;
+  const a=await sb.from(CONFIG.PRODUCTS).select("*").order("sort",{ascending:true}).order("id",{ascending:true});
+  adminProducts=a.error?[]:a.data;
+  $("#prList").innerHTML=adminProducts.length?adminProducts.map(p=>{const u=safeUrl(p.image_url);return `<div class="item"><div class="thumb">${u?`<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">`:"🛍️"}</div><div class="t"><b>${esc(p.name)}</b><small>${cedi(Number(p.price))}${p.price_l100!=null&&p.price_l100!==""?" · Level 100: "+cedi(Number(p.price_l100)):""}${p.active===false?" · hidden":""}</small></div><div class="acts"><button class="btn alt" data-pedit="${esc(p.id)}">Edit</button><button class="btn alt" data-ptoggle="${esc(p.id)}">${p.active===false?"Show":"Hide"}</button><button class="btn red" data-pdel="${esc(p.id)}">Delete</button></div></div>`}).join(""):'<div class="empty">No items yet. Add the first one above.</div>';
+  await loadOrders();
+}
+let adminOrders=[];
+async function loadOrders(){
+  const o=await sb.from(CONFIG.ORDERS).select("*").order("created_at",{ascending:false}).limit(200);
+  adminOrders=o.error?[]:o.data;
+  $("#orList").innerHTML=adminOrders.length?adminOrders.map(r=>{const its=Array.isArray(r.items)?r.items:[];return `<div class="item" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b>${esc(r.student_name||"")} · ${esc(r.index_number||"")}</b><span>${cedi(Number(r.total))} ${r.status==="paid"?"✅":'<span style="color:#b91c1c;font-weight:700">⚠ check amount</span>'}${r.fulfilled?" · collected":""}</span></div><small class="hint">${esc(new Date(r.created_at).toLocaleString())}${r.phone?" · "+esc(r.phone):""} · ${esc(r.email||"")} · Level ${esc(r.level||"")}</small><div style="margin:6px 0">${its.map(l=>`${esc(l.name)} × ${esc(l.qty)}${[l.size,l.color].some(Boolean)?" ("+esc([l.size,l.color].filter(Boolean).join(", "))+")":""}`).join("<br>")}</div><button class="btn alt" data-ofill="${esc(r.reference)}" type="button">${r.fulfilled?"Mark as not collected":"Mark as collected"}</button></div>`}).join(""):'<div class="empty">No orders yet.</div>';
+}
+$("#orRefresh").onclick=loadOrders;
+$("#orList").onclick=async e=>{
+  const b=e.target.closest("[data-ofill]");if(!b)return;
+  const r=adminOrders.find(x=>x.reference===b.dataset.ofill);if(!r)return;
+  const {error}=await sb.from(CONFIG.ORDERS).update({fulfilled:!r.fulfilled}).eq("reference",r.reference);
+  if(error)return toast("Failed: "+error.message);
+  loadOrders();
+};
+$("#orDl").onclick=async()=>{
+  try{
+    if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
+    const o=await sb.from(CONFIG.ORDERS).select("*").order("created_at",{ascending:false});
+    if(o.error)throw o.error;
+    const rows=o.data;if(!rows.length)return toast("No orders yet.");
+    const lines=rows.map(r=>[new Date(r.created_at).toLocaleString(),r.reference,r.student_name||"",r.index_number||"",r.phone||"",r.email||"",r.level||"",(Array.isArray(r.items)?r.items:[]).map(l=>l.name+" x"+l.qty+([l.size,l.color].some(Boolean)?" ("+[l.size,l.color].filter(Boolean).join(", ")+")":"")).join("; "),Number(r.total),Number(r.paid_amount),r.status==="paid"?"Paid":"Check amount",r.fulfilled?"Yes":"No"]);
+    const tally=new Map();
+    rows.filter(r=>r.status==="paid").forEach(r=>(Array.isArray(r.items)?r.items:[]).forEach(l=>{const k=[l.name,l.size||"",l.color||""].join("|");tally.set(k,(tally.get(k)||0)+Number(l.qty||0))}));
+    const sum=[["Item","Size","Colour","Quantity to order"],...[...tally].map(([k,q])=>[...k.split("|"),q])];
+    saveBook([["Orders",[["Date","Order number","Name","Student ID","Phone","Email","Level","Items","Total (GHS)","Paid (GHS)","Status","Collected"],...lines],[22,26,26,18,16,28,8,50,12,12,14,10]],["Quantities to order",sum,[30,12,12,18]]],"NAMSA-store-orders-"+stamp()+".xlsx");
+  }catch(x){toast("Failed: "+x.message)}
+};
+let prImgFile=null;
+$("#prImg").onchange=e=>{prImgFile=e.target.files[0]||null;$("#prImgName").textContent=prImgFile?prImgFile.name+" (will be shrunk to 50 KB)":""};
+function prReset(){["prId","prName","prDesc","prPrice","prPrice100","prSizes","prColors"].forEach(i=>$("#"+i).value="");$("#prActive").checked=true;$("#prImg").value="";prImgFile=null;$("#prImgName").textContent="";$("#prCancel").hidden=true;$("#prSave").textContent="Save item"}
+$("#prCancel").onclick=prReset;
+$("#prSave").onclick=async()=>{
+  const id=$("#prId").value,name=$("#prName").value.trim(),price=parseFloat($("#prPrice").value),p100raw=$("#prPrice100").value.trim(),p100=p100raw===""?null:parseFloat(p100raw);
+  if(!name)return toast("Enter the item name.");
+  if(!(price>0))return toast("Enter a valid price.");
+  if(p100!==null&&!(p100>0))return toast("The Level 100 price must be a number, or leave it empty.");
+  const old=id?adminProducts.find(x=>String(x.id)===id):null;
+  let image_url=old?old.image_url:null;
+  try{
+    if(prImgFile){toast("Shrinking and uploading the picture…");image_url=(await uploadMedia(prImgFile,"store",false)).url}
+  }catch(x){return toast("Failed: "+x.message)}
+  const row={name,description:$("#prDesc").value.trim()||null,price,price_l100:p100,sizes:csv($("#prSizes").value).join(", ")||null,colors:csv($("#prColors").value).join(", ")||null,image_url,active:$("#prActive").checked};
+  const {error}=id?await sb.from(CONFIG.PRODUCTS).update(row).eq("id",id):await sb.from(CONFIG.PRODUCTS).insert({...row,sort:adminProducts.length});
+  if(error){if(prImgFile&&image_url)dropFile(image_url);return toast("Failed: "+error.message)}
+  if(old&&prImgFile&&old.image_url)dropFile(old.image_url);
+  prReset();toast("Item saved");load();loadStoreAdmin();
+};
+$("#prList").onclick=async e=>{
+  const ed=e.target.closest("[data-pedit]"),tg=e.target.closest("[data-ptoggle]"),del=e.target.closest("[data-pdel]");
+  if(ed){const p=adminProducts.find(x=>String(x.id)===ed.dataset.pedit);if(!p)return;
+    $("#prId").value=p.id;$("#prName").value=p.name||"";$("#prDesc").value=p.description||"";$("#prPrice").value=p.price;$("#prPrice100").value=p.price_l100==null?"":p.price_l100;$("#prSizes").value=p.sizes||"";$("#prColors").value=p.colors||"";$("#prActive").checked=p.active!==false;$("#prCancel").hidden=false;$("#prSave").textContent="Update item";$("#prName").focus()}
+  if(tg){const p=adminProducts.find(x=>String(x.id)===tg.dataset.ptoggle);if(!p)return;const {error}=await sb.from(CONFIG.PRODUCTS).update({active:p.active===false}).eq("id",p.id);if(error)return toast("Failed: "+error.message);load();loadStoreAdmin()}
+  if(del){if(!confirm("Delete this item from the store?"))return;const p=adminProducts.find(x=>String(x.id)===del.dataset.pdel);const {error}=await sb.from(CONFIG.PRODUCTS).delete().eq("id",del.dataset.pdel);if(error)return toast("Delete failed: "+error.message);if(p&&p.image_url)dropFile(p.image_url);toast("Deleted");load();loadStoreAdmin()}
+};
+
 /* ===== phone detection: the page adjusts itself to the screen ===== */
 (function(){
   const root=document.documentElement,mqW=matchMedia("(max-width:720px)"),mqT=matchMedia("(pointer:coarse)"),ua=navigator.userAgent;
