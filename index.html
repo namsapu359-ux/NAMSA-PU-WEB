@@ -1219,8 +1219,7 @@ async function load(){
     news=n1.error?[]:n1.data;
     const c1=await sb.from(CONFIG.CONTACTS).select("*").order("sort",{ascending:true}).order("id",{ascending:true});
     contacts=c1.error?[]:c1.data;
-    const pr1=await sb.from(CONFIG.PRODUCTS).select("*").eq("active",true).order("sort",{ascending:true}).order("id",{ascending:true});
-    products=pr1.error?[]:pr1.data;
+    await fetchProducts();
   }
   render();renderPeople();renderAdmin();renderBrand();renderSlides();renderCampus();renderContacts();updateCount();if($("#storeO").classList.contains("show"))renderStoreView();
   loadLinks();
@@ -3012,7 +3011,7 @@ document.querySelectorAll(".links a").forEach(a=>a.addEventListener("click",()=>
 $("#yr").textContent=new Date().getFullYear();
 /* ===== NAMSA store: pictures, cart and checkout ===== */
 const DEFAULT_SIZES="Small, Medium, Large, XL, 2XL, 3XL";
-let products=[],CART=[],stLevel="",stCls={year_batch:"",intake:"",program:"",program_type:""},stSheet="",stDone=null,stPend=null,stPick={size:"",color:""},stForm={name:"",id:"",email:"",phone:""};
+let productsError="",products=[],CART=[],stLevel="",stCls={year_batch:"",intake:"",program:"",program_type:""},stSheet="",stDone=null,stPend=null,stPick={size:"",color:""},stForm={name:"",id:"",email:"",phone:""};
 try{CART=JSON.parse(localStorage.getItem("namsa_cart")||"[]");if(!Array.isArray(CART))CART=[]}catch{CART=[]}
 const saveCart=()=>{try{localStorage.setItem("namsa_cart",JSON.stringify(CART))}catch{}};
 const csv=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
@@ -3031,7 +3030,16 @@ function updateCount(bump){
   if(bump&&show){bar.classList.remove("bump");void bar.offsetWidth;bar.classList.add("bump")}
 }
 function openSheet(mode){stSheet=mode;$("#stSheet").hidden=!mode;if(mode)renderSheet()}
-function openStore(){stDone=null;stPend=null;openSheet("");renderStoreView();open("#storeO");updateCount()}
+async function fetchProducts(){
+  if(!sb)return;
+  const r=await sb.from(CONFIG.PRODUCTS).select("*").eq("active",true).order("sort",{ascending:true}).order("id",{ascending:true});
+  productsError=r.error?r.error.message:"";
+  products=r.error?[]:r.data;
+}
+function openStore(){
+  stDone=null;stPend=null;openSheet("");renderStoreView();open("#storeO");updateCount();
+  fetchProducts().then(()=>{renderStoreView();updateCount()});   /* always show the latest items, even if the page was opened long ago */
+}
 function readStForm(){
   if($("#stName")){stForm={name:$("#stName").value,id:$("#stId").value,email:$("#stEmail").value,phone:$("#stPhone").value}}
   if($("#stLv"))stLevel=$("#stLv").value;
@@ -3041,7 +3049,7 @@ function renderStoreView(){
   const v=$("#stView");if(!v)return;
   v.innerHTML=products.length?`<div class="stgrid">${products.map(p=>{
     const img=safeUrl(p.image_url);
-    return `<div class="stcard" data-pid="${esc(p.id)}"><div class="stimg">${img?`<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:"🛍️"}</div><div class="stbody"><b>${esc(p.name)}</b>${p.description?`<p>${esc(p.description)}</p>`:""}<div class="stprice">${cedi(Number(p.price))}</div><button class="btn" data-add="${esc(p.id)}" type="button">Add to cart</button></div></div>`}).join("")}</div>`:'<div class="empty" style="padding:40px 16px;text-align:center">The store is being stocked. Please check back soon.</div>';
+    return `<div class="stcard" data-pid="${esc(p.id)}"><div class="stimg">${img?`<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:"🛍️"}</div><div class="stbody"><b>${esc(p.name)}</b>${p.description?`<p>${esc(p.description)}</p>`:""}<div class="stprice">${cedi(Number(p.price))}</div><button class="btn" data-add="${esc(p.id)}" type="button">Add to cart</button></div></div>`}).join("")}</div>`:productsError?`<div class="note" style="margin:16px">Could not load the store (${esc(productsError)}). Please reload the page or try again in a moment.</div>`:'<div class="empty" style="padding:40px 16px;text-align:center">The store is being stocked. Please check back soon.</div>';
 }
 function renderSheet(){
   const el=$("#stSheetBody");if(!el)return;
