@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.sheetjs.com https://js.paystack.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.paystack.co https://*.paystack.com; frame-src https://*.paystack.com https://*.paystack.co; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="theme-color" content="#0c3a66">
@@ -444,6 +448,72 @@ textarea{resize:vertical;min-height:84px}
 .gx{position:absolute;top:8px;right:10px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;font-size:.9rem}
 @keyframes ginUp{from{opacity:0;transform:translateY(40px) scale(.96)}}
 @media(max-width:520px){.gear{height:330px}.gi{width:82px;margin:-52px 0 0 -41px}.gplate{width:76px;height:76px;border-radius:22px}.gplate svg{width:60px;height:60px}.ginfo p{font-size:.8rem}}
+/* ================= PHONE & TABLET POLISH ================= */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{overflow-x:hidden}
+img,video,svg{max-width:100%}
+button,.btn,a,label.btn,select,summary{touch-action:manipulation;-webkit-tap-highlight-color:rgba(14,92,147,.15)}
+header{padding-top:env(safe-area-inset-top)}
+.overlay{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+footer{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
+.chk{display:flex;align-items:center;gap:10px;line-height:1.35}
+.wrap{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+@media(max-width:720px){
+  /* typing never makes the phone zoom in (needs 16px) */
+  input[type=text],input[type=email],input[type=password],input[type=url],input[type=tel],input[type=number],textarea,select{font-size:16px;min-height:46px}
+  .btn,.links a,.links button,.adm-tabs button{min-height:44px}
+  /* hero: tidy buttons in two columns */
+  .hero{padding:28px 0 70px}
+  .hero .acts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hero .acts .btn{padding:12px 10px;font-size:.88rem;width:100%}
+  .stats{gap:14px 22px}
+  .waves{height:46px}
+  /* menus and sections */
+  .links.open{max-height:calc(var(--vh,1vh)*100 - 76px);overflow:auto}
+  section{padding-top:46px;padding-bottom:46px}
+  .sec-h h2{font-size:1.6rem}
+  .acgrid{grid-template-columns:1fr 1fr;gap:12px}
+  .accard .cap{padding:10px 12px}
+  .anncard{padding:14px}
+  /* pop-ups become bottom sheets that fit the screen */
+  .overlay{align-items:flex-end;padding:0}
+  .modal{width:100%;max-height:calc(var(--vh,1vh)*94);border-radius:24px 24px 0 0;padding:22px 18px calc(18px + env(safe-area-inset-bottom));border-top-width:5px}
+  .modal .row{gap:8px}
+  .modal .row .btn{flex:1}
+  #payO .modal>.row,#claimO .modal>.row{position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom));background:#fff;padding:10px 0 4px;margin-top:10px;z-index:5}
+  /* forms in the admin area stack neatly */
+  .lrow{flex-direction:column}
+  .lrow input,.lrow select,.lrow .btn{min-width:0;width:100%;flex:none}
+  .adm-top{flex-direction:column;align-items:flex-start;gap:8px}
+  .adm-acts{width:100%;display:flex;gap:8px}.adm-acts .btn{flex:1}
+  .panel{padding:16px 14px;border-radius:20px}
+  .item{align-items:flex-start}
+  .item .acts{width:100%;display:flex;flex-wrap:wrap;gap:8px}
+  .item .acts .btn{flex:1}
+  #repTable,#admin .panel table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #repCards{grid-template-columns:1fr 1fr!important}
+  .adm-tabs{padding:10px 3%;-webkit-overflow-scrolling:touch;scrollbar-width:none}.adm-tabs::-webkit-scrollbar{display:none}
+  .wheelwrap{-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
+}
+@media(max-width:380px){
+  .hero h1{font-size:1.75rem}
+  .acgrid{grid-template-columns:1fr}
+  .hero .acts{grid-template-columns:1fr}
+}
+/* phones turned sideways */
+@media(max-height:480px) and (orientation:landscape){
+  .hero{padding:18px 0 46px}.gear{height:300px}.wheelwrap{height:330px}
+  .modal{max-height:calc(var(--vh,1vh)*98)}
+}
+/* touch screens: no hover-only effects, bigger tap areas */
+.touch .wpill{display:none!important}
+.touch .card:hover,.touch .person:hover{transform:none}
+/* data-saver or low-power phones: switch off the heaviest decoration */
+.lite .aurora,.lite .floaters,.lite .waves{display:none}
+.lite *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.mobile .aurora i{filter:blur(40px)}
+.mobile header,.mobile .overlay{backdrop-filter:none;-webkit-backdrop-filter:none}
 </style>
 </head>
 <body>
@@ -457,6 +527,7 @@ textarea{resize:vertical;min-height:84px}
       <a href="#home">Home</a>
       <a href="#announcements" id="navAnn" hidden>Announcements</a>
       <a href="#activities" id="navAct" hidden>Activities</a>
+      <a href="#contact" id="navCon" hidden>Contact</a>
       <a href="#leadership">Leadership</a>
       <a href="#committees">Committees</a>
       <a href="#about">About</a>
@@ -482,7 +553,8 @@ textarea{resize:vertical;min-height:84px}
         <div class="acts">
           <a class="btn light" href="#leadership">Meet our leaders</a>
           <a class="btn ghost" href="#committees">Open committees</a>
-          <button type="button" class="btn ghost" id="heroPay">💳 Pay dues &amp; buy things</button>
+          <button type="button" class="btn ghost" id="heroPay">💳 Pay dues</button>
+          <button type="button" class="btn ghost" id="heroShop">🛍️ NAMSA shop</button>
         </div>
         <div class="stats">
           <div><b id="stC">0</b><span>Committees</span></div>
@@ -561,6 +633,13 @@ textarea{resize:vertical;min-height:84px}
   </section>
 </main>
 
+<section id="contact" hidden>
+  <div class="wrap">
+    <div class="sec-h"><span class="eyebrow">Get in touch</span><h2>Contact NAMSA</h2><p>Call or write to us.</p></div>
+    <div class="acgrid" id="conList"></div>
+  </div>
+</section>
+
 <footer>
   <div class="wrap fgrid">
     <div><div id="fLogo"></div><h4>NAMSA-PU Official Website</h4><p>The official website of the Nursing and Midwifery Students’ Association, Pentecost University (NAMSA-PU).</p></div>
@@ -584,9 +663,10 @@ textarea{resize:vertical;min-height:84px}
       <button data-tab="pictures">Website</button>
       <button data-tab="activities">Activities</button>
       <button data-tab="news">Announcements</button>
+      <button data-tab="contacts">Contacts</button>
       <button data-tab="dues">Dues &amp; payments</button>
       <button data-tab="security">Security</button>
-      <button data-tab="admins">Admins</button>
+      <button data-tab="admins">Team &amp; roles</button>
     </div>
   </div>
 
@@ -633,12 +713,30 @@ textarea{resize:vertical;min-height:84px}
 
     <div class="atab" id="tab-activities">
       <div class="panel">
-        <div class="adm-top"><div><h2>Campus activities</h2><p style="color:var(--muted)">Share pictures and short videos of what is going on campus. Pictures are shrunk to under 50 KB automatically. Videos must be 200 KB or smaller.</p></div></div>
+        <div class="adm-top"><div><h2>Campus activities</h2><p style="color:var(--muted)">Share pictures and videos of what is going on campus. Pictures are shrunk to under 50 KB automatically. Uploaded videos must be 200 KB or smaller; for longer videos paste a link.</p></div></div>
         <label for="acTitle">Title</label><input type="text" id="acTitle" maxlength="120" placeholder="e.g. Health screening outreach">
         <label for="acCap">Short description (optional)</label><input type="text" id="acCap" maxlength="300">
-        <div class="row" style="margin-top:12px"><label class="btn">＋ Upload picture or video<input type="file" id="acF" accept="image/*,video/*" multiple hidden></label></div>
+        <div class="row" style="margin-top:12px"><label class="btn">📷 Upload pictures<input type="file" id="acF" accept="image/*" multiple hidden></label></div>
+        <div class="item" style="display:block;margin-top:12px">
+          <b>🎬 Video box</b>
+          <div class="hint" style="margin:4px 0 8px">Upload a short video (200 KB or smaller), or paste a link to a longer video (YouTube, Facebook, TikTok…). Fill in the title above first.</div>
+          <div class="row"><label class="btn">🎬 Upload video<input type="file" id="acV" accept="video/*" hidden></label></div>
+          <div class="lrow" style="margin-top:8px"><input type="text" id="acLink" placeholder="https://… video link" maxlength="300"><button class="btn alt" id="acLinkGo" type="button">Add video link</button></div>
+        </div>
       </div>
       <div class="panel"><div id="acList"></div></div>
+    </div>
+
+    <div class="atab" id="tab-contacts">
+      <div class="panel">
+        <div class="adm-top"><div><h2>Phone numbers &amp; emails</h2><p style="color:var(--muted)">These appear in the “Contact NAMSA” section of the website. Add as many as you need, edit them, or delete them.</p></div></div>
+        <input type="hidden" id="ctId">
+        <label for="ctLabel">Name or office (e.g. President, Welfare, Finance)</label><input type="text" id="ctLabel" maxlength="80">
+        <label for="ctPhone">Phone number (optional)</label><input type="text" id="ctPhone" maxlength="20" inputmode="tel" placeholder="0200000000">
+        <label for="ctEmail">Email (optional)</label><input type="email" id="ctEmail" maxlength="120">
+        <div class="row" style="margin-top:12px"><button class="btn" id="ctSave" type="button">Save contact</button><button class="btn alt" id="ctCancel" type="button" hidden>Cancel edit</button></div>
+      </div>
+      <div class="panel"><div id="ctList"></div></div>
     </div>
 
     <div class="atab" id="tab-news">
@@ -646,6 +744,7 @@ textarea{resize:vertical;min-height:84px}
         <div class="adm-top"><div><h2>Announcements</h2><p style="color:var(--muted)">Post news for all students. It appears in the Announcements section on the front page.</p></div></div>
         <label for="anTitle">Title</label><input type="text" id="anTitle" maxlength="140">
         <label for="anBody">Message</label><textarea id="anBody" maxlength="2000"></textarea>
+        <div class="row" style="margin-top:10px"><label class="btn alt">📷 Add a picture<input type="file" id="anImg" accept="image/*" hidden></label><span class="hint" id="anImgName" style="align-self:center"></span></div>
         <label class="chk" style="margin-top:8px"><input type="checkbox" id="anPin"> 📌 Pin to the top</label>
         <div class="row" style="margin-top:12px"><button class="btn" id="anPost">Post announcement</button></div>
       </div>
@@ -663,6 +762,8 @@ textarea{resize:vertical;min-height:84px}
         <label for="psShirt100">Level 100 T-shirt price (GH₵)</label><input type="text" id="psShirt100" inputmode="decimal" placeholder="20">
         <label for="psLaco100">Level 100 Lacoste price (GH₵)</label><input type="text" id="psLaco100" inputmode="decimal" placeholder="30">
         <label for="psBook">Green book (logbook) price (GH₵)</label><input type="text" id="psBook" inputmode="decimal" placeholder="60">
+        <label for="psCap">NAMSA cap / hat price (GH₵)</label><input type="text" id="psCap" inputmode="decimal" placeholder="30">
+        <label for="psTote">NAMSA tote bag price (GH₵)</label><input type="text" id="psTote" inputmode="decimal" placeholder="20">
         <div class="row"><button class="btn" id="paySave">Save payment settings</button></div>
       </div>
       <div class="panel">
@@ -727,6 +828,8 @@ textarea{resize:vertical;min-height:84px}
             <select id="mShirt" aria-label="T-shirt" style="min-width:170px"><option value="no">T-shirt: not paid</option><option value="yes">T-shirt: paid</option></select>
             <select id="mStyle" aria-label="Style" style="min-width:130px"><option value="">Style</option><option value="T-shirt">T-shirt</option><option value="Lacoste">Lacoste</option></select>
             <select id="mColor" aria-label="Colour" style="min-width:120px"><option value="">Colour</option><option>White</option><option>Blue</option></select>
+            <select id="mCap" aria-label="Cap" style="min-width:150px"><option value="no">Cap / hat: no</option><option value="yes">Cap / hat: bought</option></select>
+            <select id="mTote" aria-label="Tote bag" style="min-width:150px"><option value="no">Tote bag: no</option><option value="yes">Tote bag: bought</option></select>
             <select id="mBook" aria-label="Green book" style="min-width:170px"><option value="no">Green book: not bought</option><option value="yes">Green book: bought</option></select>
             <select id="mSize" aria-label="T-shirt size" style="min-width:140px"><option value="">T-shirt size</option><option>Small</option><option>Medium</option><option>Large</option><option>XL</option><option>2XL</option><option>3XL</option></select>
             <button class="btn" id="mAdd">Add student</button>
@@ -767,10 +870,15 @@ textarea{resize:vertical;min-height:84px}
 
     <div class="atab" id="tab-admins">
       <div class="panel">
-        <div class="adm-top"><div><h2>Admins</h2><p style="color:var(--muted)">Up to 4 people can manage this portal. Each person also needs a login created in Supabase (Authentication, Users) using the same email.</p></div></div>
+        <div class="adm-top"><div><h2>Team &amp; roles</h2><p style="color:var(--muted)">Give each person only the access they need, and their own password. <b>Super admin</b>: everything. <b>Finance</b>: dues, payments, shop and reports. <b>Content editor</b>: leaders, website pictures, activities, announcements and contacts.</p></div></div>
         <div id="adminsList"></div>
-        <label for="admEm">Add an admin email</label><input type="email" id="admEm" placeholder="name@example.com">
-        <div class="row"><button class="btn" id="admAdd">Add admin</button></div>
+        <h3 style="margin:18px 0 4px">Add or update a person</h3>
+        <label for="admEm">Email</label><input type="email" id="admEm" placeholder="name@example.com" maxlength="120">
+        <label for="admRole">Role</label><select id="admRole"><option value="editor">Content editor</option><option value="finance">Finance</option><option value="super">Super admin</option></select>
+        <label for="admPw">Password (at least 12 characters, with capital and small letters, a number and a symbol)</label>
+        <div class="lrow"><input type="text" id="admPw" autocomplete="new-password" maxlength="72"><button class="btn alt" id="admGen" type="button">Generate</button></div>
+        <div class="hint" style="margin-top:4px">Leave the password empty to change only the role. Share the password with the person privately; they can sign in at once.</div>
+        <div class="row"><button class="btn" id="admAdd" type="button">Save person</button></div>
       </div>
     </div>
   </div>
@@ -860,8 +968,8 @@ textarea{resize:vertical;min-height:84px}
 <!-- Pay NAMSA dues (Paystack popup) -->
 <div class="overlay" id="payO">
   <div class="modal" role="dialog" aria-label="Pay dues and buy things">
-    <h3>💳 Pay dues &amp; buy things</h3>
-    <p class="hint" style="margin:0 0 6px">Pay your NAMSA dues, buy a NAMSA T-shirt or Lacoste, buy the green book (logbook), or any mix in one payment.</p>
+    <h3 id="payTitle">💳 Pay dues</h3>
+    <p class="hint" id="payLead" style="margin:0 0 6px"></p>
     <p class="hint" id="payHint" style="margin-bottom:4px">Pay with mobile money or card. After you pay you are signed in automatically.</p>
     <label for="pcYr">Year batch (year of intake)</label><select id="pcYr"></select>
     <label for="pcIn">Intake (January or September)</label><select id="pcIn"></select>
@@ -871,13 +979,17 @@ textarea{resize:vertical;min-height:84px}
     <label for="payName">Full name</label><input type="text" id="payName" maxlength="120" autocomplete="name">
     <label for="payId">Student ID (index number)</label><input type="text" id="payId" maxlength="40" autocomplete="off">
     <label for="payEmail">Email address (for your receipt)</label><input type="email" id="payEmail" maxlength="120" autocomplete="email">
-    <label>What would you like to pay for?</label><div id="payOpts"></div>
-    <div class="hint" style="margin:2px 0 0">Tap an amount to select it, and tap it again to deselect it. Only want to buy a T-shirt or the green book? Leave the amount empty and tick what you want below.</div>
+    <div id="payDuesPart"><label>Choose the dues you are paying</label><div id="payOpts"></div>
+    <div class="hint" style="margin:2px 0 0">Tap an amount to select it, and tap it again to deselect it. GH₵50 covers one semester; GH₵100 covers both.</div></div>
+    <div id="payShopPart">
     <label class="chk" style="margin-top:8px"><input type="checkbox" id="payShirt"> <span id="payShirtT">➕ Add a NAMSA T-shirt</span></label>
     <div id="payShirtBox" hidden><label for="payShirtStyle">Style (T-shirt or Lacoste)</label><select id="payShirtStyle"><option value="">Select style</option><option value="T-shirt">T-shirt</option><option value="Lacoste">Lacoste</option></select>
     <label for="payShirtColor">Colour preference</label><select id="payShirtColor"><option value="">Select colour</option><option>White</option><option>Blue</option></select>
     <label for="payShirtSize">Size</label><select id="payShirtSize"><option value="">Select size</option><option>Small</option><option>Medium</option><option>Large</option><option>XL</option><option>2XL</option><option>3XL</option></select></div>
     <label class="chk" style="margin-top:8px"><input type="checkbox" id="payBook"> <span id="payBookT">📗 Buy a green book (logbook)</span></label>
+    <label class="chk" style="margin-top:8px"><input type="checkbox" id="payCap"> <span id="payCapT">🧢 NAMSA cap / hat</span></label>
+    <label class="chk" style="margin-top:8px"><input type="checkbox" id="payTote"> <span id="payToteT">👜 NAMSA tote bag</span></label>
+    </div>
     <div class="hint" id="payTotal" style="margin:6px 0 0;font-weight:700"></div>
     <div class="idnote">Your student ID and name are saved with this payment, so next time you can sign in with just your student ID. They must be your own.</div>
     <div class="bad" id="payBad" hidden></div>
@@ -964,6 +1076,8 @@ const CONFIG = {
   PAYMENTS: "namsa_portal_payments",
   TSHIRTS: "namsa_portal_tshirts",
   BOOKS: "namsa_portal_greenbooks",
+  EXTRAS: "namsa_portal_extras",
+  CONTACTS: "namsa_portal_contacts",
   ACTIVITIES: "namsa_portal_activities",
   NEWS: "namsa_portal_announcements",
   PAYSTACK_PUBLIC_KEY: "pk_live_4aa7e7cbf8c115c107ef72f3302a25f18ff16608"   // public key: safe to be in the page. The SECRET key is never here.
@@ -1009,7 +1123,7 @@ let links={},slides=[],settings={},si=0,timer,people=[],editingP=null,list=[],se
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2800)}
 const safeUrl=u=>{try{const x=new URL(u);return /^https?:$/.test(x.protocol)?x.href:""}catch{return""}};
 
-let activities=[],news=[];
+let activities=[],news=[],contacts=[];
 async function load(){
   $("#notice").innerHTML="";
   if(!sb){list=DEFAULTS;people=DEMO;$("#notice").innerHTML=configured?'<div class="note">The Supabase library could not load. Check your internet connection and reload the page.</div>':'<div class="note">Preview mode: add your Supabase URL and public key in the CONFIG block to load and save committees and leaders permanently.</div>';}
@@ -1027,8 +1141,10 @@ async function load(){
     activities=a1.error?[]:a1.data.filter(x=>safeUrl(x.media_url));
     const n1=await sb.from(CONFIG.NEWS).select("*").order("created_at",{ascending:false});
     news=n1.error?[]:n1.data;
+    const c1=await sb.from(CONFIG.CONTACTS).select("*").order("sort",{ascending:true}).order("id",{ascending:true});
+    contacts=c1.error?[]:c1.data;
   }
-  render();renderPeople();renderAdmin();renderBrand();renderSlides();renderCampus();
+  render();renderPeople();renderAdmin();renderBrand();renderSlides();renderCampus();renderContacts();
   loadLinks();
 }
 
@@ -1039,23 +1155,54 @@ function renderCampus(){
   /* public: announcements (pinned first) */
   const an=news.filter(x=>x.active!==false).sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0)||new Date(b.created_at)-new Date(a.created_at));
   $("#announcements").hidden=!an.length;$("#navAnn").hidden=!an.length;
-  $("#annList").innerHTML=an.slice(0,8).map(x=>`<div class="anncard"><h3>${x.pinned?"📌 ":""}${esc(x.title)}</h3><small>${esc(fmtDate(x.created_at))}</small><p>${esc(x.body||"")}</p></div>`).join("");
+  $("#annList").innerHTML=an.slice(0,8).map(x=>`<div class="anncard"><h3>${x.pinned?"📌 ":""}${esc(x.title)}</h3><small>${esc(fmtDate(x.created_at))}</small>${safeUrl(x.image_url)?`<img src="${esc(safeUrl(x.image_url))}" alt="" loading="lazy" decoding="async" style="display:block;width:100%;max-height:280px;object-fit:cover;border-radius:12px;margin-top:10px">`:""}<p>${esc(x.body||"")}</p></div>`).join("");
   /* public: campus activities */
   $("#activities").hidden=!activities.length;$("#navAct").hidden=!activities.length;
   $("#acGrid").innerHTML=activities.slice(0,acShown).map(x=>{
     const u=esc(safeUrl(x.media_url));
-    const m=x.media_type==="video"?`<video src="${u}" controls preload="none" playsinline></video>`:`<img src="${u}" alt="${esc(x.title)}" loading="lazy" decoding="async">`;
+    const m=x.media_type==="link"?`<a href="${u}" target="_blank" rel="noopener noreferrer" style="display:grid;place-items:center;aspect-ratio:4/3;background:linear-gradient(135deg,#0c3a66,#1b7fc4);color:#fff;font-weight:800;text-decoration:none;font-size:1.05rem">🎬 Watch video</a>`:x.media_type==="video"?`<video src="${u}" controls preload="none" playsinline></video>`:`<img src="${u}" alt="${esc(x.title)}" loading="lazy" decoding="async">`;
     return `<div class="accard">${m}<div class="cap"><b>${esc(x.title)}</b>${x.caption?`<small>${esc(x.caption)}</small><br>`:""}<small>${esc(fmtDate(x.created_at))}</small></div></div>`}).join("");
   $("#acMore").hidden=activities.length<=acShown;
   /* admin lists */
   const al=$("#acList");
   if(al)al.innerHTML=activities.length?activities.map(x=>{
     const u=esc(safeUrl(x.media_url));
-    const th=x.media_type==="video"?`<video src="${u}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover"></video>`:`<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">`;
-    return `<div class="item"><div class="thumb">${th}</div><div class="t"><b>${esc(x.title)}</b><small>${x.media_type==="video"?"Video":"Picture"} · ${esc(fmtDate(x.created_at))}</small></div><div class="acts"><button class="btn red" data-acdel="${esc(x.id)}">Delete</button></div></div>`}).join(""):'<div class="empty">No activities yet. Upload a picture or short video above.</div>';
+    const th=x.media_type==="link"?`<span style="font-size:1.6rem">🎬</span>`:x.media_type==="video"?`<video src="${u}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover"></video>`:`<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">`;
+    return `<div class="item"><div class="thumb">${th}</div><div class="t"><b>${esc(x.title)}</b><small>${x.media_type==="link"?"Video link":x.media_type==="video"?"Video":"Picture"} · ${esc(fmtDate(x.created_at))}</small></div><div class="acts"><button class="btn red" data-acdel="${esc(x.id)}">Delete</button></div></div>`}).join(""):'<div class="empty">No activities yet. Upload a picture or short video above.</div>';
   const nl=$("#anList");
-  if(nl)nl.innerHTML=news.length?news.map(x=>`<div class="item"><div class="t"><b>${x.pinned?"📌 ":""}${esc(x.title)}</b><small>${esc(fmtDate(x.created_at))}${x.active===false?" · hidden":""}</small></div><div class="acts"><button class="btn alt" data-anpin="${esc(x.id)}">${x.pinned?"Unpin":"Pin"}</button><button class="btn red" data-andel="${esc(x.id)}">Delete</button></div></div>`).join(""):'<div class="empty">No announcements yet.</div>';
+  if(nl)nl.innerHTML=news.length?news.map(x=>`<div class="item">${safeUrl(x.image_url)?`<div class="thumb"><img src="${esc(safeUrl(x.image_url))}" alt="" style="width:100%;height:100%;object-fit:cover"></div>`:""}<div class="t"><b>${x.pinned?"📌 ":""}${esc(x.title)}</b><small>${esc(fmtDate(x.created_at))}${x.active===false?" · hidden":""}</small></div><div class="acts"><button class="btn alt" data-anpin="${esc(x.id)}">${x.pinned?"Unpin":"Pin"}</button><button class="btn red" data-andel="${esc(x.id)}">Delete</button></div></div>`).join(""):'<div class="empty">No announcements yet.</div>';
 }
+/* ---- contacts ---- */
+const telHref=v=>"tel:"+String(v).replace(/[^+0-9]/g,"");
+function renderContacts(){
+  $("#contact").hidden=!contacts.length;$("#navCon").hidden=!contacts.length;
+  $("#conList").innerHTML=contacts.map(c=>`<div class="accard" style="padding:16px"><b style="display:block;margin-bottom:6px">${esc(c.label)}</b>${c.phone?`<div><a href="${esc(telHref(c.phone))}">📞 ${esc(c.phone)}</a></div>`:""}${c.email?`<div style="word-break:break-all"><a href="mailto:${esc(c.email)}">✉️ ${esc(c.email)}</a></div>`:""}</div>`).join("");
+  const l=$("#ctList");
+  if(l)l.innerHTML=contacts.length?contacts.map(c=>`<div class="item"><div class="t"><b>${esc(c.label)}</b><small>${esc([c.phone,c.email].filter(Boolean).join(" · "))}</small></div><div class="acts"><button class="btn alt" data-ctedit="${esc(c.id)}">Edit</button><button class="btn red" data-ctdel="${esc(c.id)}">Delete</button></div></div>`).join(""):'<div class="empty">No contacts yet. Add the first one above.</div>';
+}
+function ctReset(){$("#ctId").value="";$("#ctLabel").value="";$("#ctPhone").value="";$("#ctEmail").value="";$("#ctCancel").hidden=true;$("#ctSave").textContent="Save contact"}
+$("#ctCancel").onclick=ctReset;
+$("#ctSave").onclick=async()=>{
+  const label=$("#ctLabel").value.trim(),phone=$("#ctPhone").value.trim(),email=$("#ctEmail").value.trim().toLowerCase(),id=$("#ctId").value;
+  if(!label)return toast("Enter a name or office.");
+  if(!phone&&!email)return toast("Enter a phone number or an email.");
+  if(phone&&!/^[+0-9 ()-]{7,20}$/.test(phone))return toast("The phone number may only have digits, spaces, + ( ) -");
+  if(email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return toast("Enter a valid email address.");
+  const row={label,phone:phone||null,email:email||null};
+  const {error}=id?await sb.from(CONFIG.CONTACTS).update(row).eq("id",id):await sb.from(CONFIG.CONTACTS).insert({...row,sort:contacts.length});
+  if(error)return toast("Failed: "+error.message);
+  ctReset();toast("Contact saved");load();
+};
+$("#ctList").onclick=async e=>{
+  const ed=e.target.closest("[data-ctedit]"),del=e.target.closest("[data-ctdel]");
+  if(ed){const c=contacts.find(x=>String(x.id)===ed.dataset.ctedit);if(!c)return;$("#ctId").value=c.id;$("#ctLabel").value=c.label||"";$("#ctPhone").value=c.phone||"";$("#ctEmail").value=c.email||"";$("#ctCancel").hidden=false;$("#ctSave").textContent="Update contact";$("#ctLabel").focus()}
+  if(del){
+    if(!confirm("Delete this contact?"))return;
+    const {error}=await sb.from(CONFIG.CONTACTS).delete().eq("id",del.dataset.ctdel);
+    if(error)return toast("Delete failed: "+error.message);
+    toast("Deleted");load();
+  }
+};
 $("#acMore").onclick=()=>{acShown+=12;renderCampus()};
 $("#acF").onchange=async e=>{
   const files=[...e.target.files];if(!files.length)return;
@@ -1063,7 +1210,7 @@ $("#acF").onchange=async e=>{
   try{
     for(const [i,f] of files.entries()){
       toast("Shrinking and uploading "+(i+1)+" of "+files.length+"…");
-      const m=await uploadMedia(f,"activities",true);
+      const m=await uploadMedia(f,"activities",false);
       const {error}=await sb.from(CONFIG.ACTIVITIES).insert({title,caption,media_url:m.url,media_type:m.type});
       if(error){dropFile(m.url);throw error}
     }
@@ -1071,6 +1218,27 @@ $("#acF").onchange=async e=>{
     toast("Added to campus activities");load();
   }catch(x){toast("Failed: "+x.message)}
   e.target.value="";
+};
+$("#acV").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  const title=$("#acTitle").value.trim()||"Campus activity",caption=$("#acCap").value.trim();
+  try{
+    if(!f.type.startsWith("video/"))throw new Error("Choose a video file.");
+    toast("Uploading the video…");
+    const m=await uploadMedia(f,"activities",true);
+    const {error}=await sb.from(CONFIG.ACTIVITIES).insert({title,caption,media_url:m.url,media_type:"video"});
+    if(error){dropFile(m.url);throw error}
+    $("#acTitle").value="";$("#acCap").value="";toast("Video added");load();
+  }catch(x){toast("Failed: "+x.message)}
+  e.target.value="";
+};
+$("#acLinkGo").onclick=async()=>{
+  const u=safeUrl($("#acLink").value.trim());
+  if(!u)return toast("Paste a full link that starts with https://");
+  const title=$("#acTitle").value.trim()||"Campus video",caption=$("#acCap").value.trim();
+  const {error}=await sb.from(CONFIG.ACTIVITIES).insert({title,caption,media_url:u,media_type:"link"});
+  if(error)return toast("Failed: "+error.message);
+  $("#acLink").value="";$("#acTitle").value="";$("#acCap").value="";toast("Video link added");load();
 };
 $("#acList").onclick=async e=>{
   const d=e.target.closest("[data-acdel]");if(!d)return;
@@ -1081,12 +1249,16 @@ $("#acList").onclick=async e=>{
   if(a)dropFile(a.media_url);
   toast("Deleted");load();
 };
+$("#anImg").onchange=e=>{const f=e.target.files[0];$("#anImgName").textContent=f?f.name+" (will be shrunk to 50 KB)":""};
 $("#anPost").onclick=async()=>{
   const title=$("#anTitle").value.trim(),body=$("#anBody").value.trim();
   if(!title)return toast("Enter a title.");
-  const {error}=await sb.from(CONFIG.NEWS).insert({title,body,pinned:$("#anPin").checked,active:true});
-  if(error)return toast("Failed: "+error.message);
-  $("#anTitle").value="";$("#anBody").value="";$("#anPin").checked=false;
+  let image_url=null;
+  const f=$("#anImg").files[0];
+  if(f){try{toast("Shrinking and uploading the picture…");image_url=(await uploadMedia(f,"announcements",false)).url}catch(x){return toast("Failed: "+x.message)}}
+  const {error}=await sb.from(CONFIG.NEWS).insert({title,body,pinned:$("#anPin").checked,active:true,image_url});
+  if(error){if(image_url)dropFile(image_url);return toast("Failed: "+error.message)}
+  $("#anTitle").value="";$("#anBody").value="";$("#anPin").checked=false;$("#anImg").value="";$("#anImgName").textContent="";
   toast("Announcement posted");load();
 };
 $("#anList").onclick=async e=>{
@@ -1099,8 +1271,10 @@ $("#anList").onclick=async e=>{
   }
   if(del){
     if(!confirm("Delete this announcement?"))return;
+    const old=news.find(x=>String(x.id)===del.dataset.andel);
     const {error}=await sb.from(CONFIG.NEWS).delete().eq("id",del.dataset.andel);
     if(error)return toast("Delete failed: "+error.message);
+    if(old&&old.image_url)dropFile(old.image_url);
     toast("Deleted");load();
   }
 };
@@ -1295,7 +1469,7 @@ function render(){
 }
 
 function renderAdmin(){
-  if(!session)return;renderPeopleAdmin();renderSlots();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();loadAdmins();renderSecurity();
+  if(!session)return;renderPeopleAdmin();renderSlots();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();if(myRole==="super")loadAdmins();renderSecurity();
   const fallback=list===DEFAULTS;
   const withLink=list.filter(c=>links[c.id]||c.has_link).length;
   $("#cSummary").textContent=fallback?"":list.length+" committees, "+withLink+" with a link saved";
@@ -1352,7 +1526,10 @@ async function handleAuth(s){
   if(!s||!sb){session=null;paintAuth();return "none"}
   let admin=false;
   try{const r=await sb.rpc("is_namsa_admin");admin=!r.error&&r.data===true}catch{}
-  if(admin){session=s;stu=null;stuToken=""}
+  if(admin){
+    session=s;stu=null;stuToken="";
+    try{const rr=await sb.rpc("namsa_my_role");myRole=(!rr.error&&rr.data)?String(rr.data):"super"}catch{myRole="super"}
+  }
   else{session=null;try{await sb.auth.signOut()}catch{}}
   paintAuth();bumpIdle();
   return admin?"admin":"none";
@@ -1861,10 +2038,15 @@ function showPayMessage(paid,min,full,target,idPrefill,intro,renew){
 
 $("#heroPay").onclick=()=>{
   const min=num(settings.dues_min,50),full=num(settings.dues_full,100);
-  if(stu){openPay(stu.label||"",0,min,full);if(stu.name)$("#payName").value=stu.name;return}
+  if(stu){openPay(stu.label||"",0,min,full,"dues");if(stu.name)$("#payName").value=stu.name;return}
   /* same process as opening a committee: sign in with student ID, or pay now, or verify an earlier payment */
   openStudentModal();
   showPayMessage(0,min,full,"#stuBad","",true);
+};
+/* the shop is a separate space: items only, no dues */
+$("#heroShop").onclick=()=>{
+  const min=num(settings.dues_min,50),full=num(settings.dues_full,100);
+  openPay(stu?stu.label||"":"",0,min,full,"shop");if(stu&&stu.name)$("#payName").value=stu.name;
 };
 /* ---- pay NAMSA dues with the Paystack popup ---- */
 function loadPaystack(){
@@ -1890,19 +2072,21 @@ const classOk=c=>!!(c.year_batch&&c.intake&&c.program&&c.program_type&&c.level);
 const curSem=()=>num(settings.semester_no,1)===2?"Second semester":"First semester";
 const semFor=a=>{const min=num(settings.dues_min,50),full=num(settings.dues_full,100);return a>=full?(curSem()==="First semester"?"Both semesters":"Second semester + next semester"):a>=min?curSem():"Below minimum"};
 /* total = dues amount + T-shirt (only when the box is ticked); with no T-shirt the amount stays the same */
-const bookPrice=()=>num(settings.greenbook_price,60);
+const bookPrice=()=>num(settings.greenbook_price,60),capPrice=()=>num(settings.cap_price,30),totePrice=()=>num(settings.tote_price,20);
+let PAYMODE="dues";   /* "dues" shows only the dues section; "shop" shows only the items */
 const duesPicked=()=>parseFloat((document.querySelector('input[name="payAmt"]:checked')||{}).value)||0;
 function payTotal(){
-  return duesPicked()+($("#payShirt").checked?shirtPrice():0)+($("#payBook").checked?bookPrice():0);
+  return (PAYMODE==="dues"?duesPicked():0)+(PAYMODE==="shop"?($("#payShirt").checked?shirtPrice():0)+($("#payBook").checked?bookPrice():0)+($("#payCap").checked?capPrice():0)+($("#payTote").checked?totePrice():0):0);
 }
 function updatePayTotal(){
   const lv=$("#pcLv").value,ps=$("#payShirtStyle").options;
   ps[1].textContent="T-shirt ("+cedi(shirtPriceFor("T-shirt",lv))+")";ps[2].textContent="Lacoste ("+cedi(shirtPriceFor("Lacoste",lv))+")";
   $("#payShirtT").textContent="➕ Add a T-shirt ("+cedi(shirtPriceFor("T-shirt",lv))+") or Lacoste ("+cedi(shirtPriceFor("Lacoste",lv))+")";
   $("#payShirtBox").hidden=!$("#payShirt").checked;
-  $("#payBookT").textContent="📗 Buy a green book (logbook) (+"+cedi(bookPrice())+")";
+  $("#payBookT").textContent="📗 Green book / logbook ("+cedi(bookPrice())+")";
+  $("#payCapT").textContent="🧢 NAMSA cap / hat ("+cedi(capPrice())+")";$("#payToteT").textContent="👜 NAMSA tote bag ("+cedi(totePrice())+")";
   const t=payTotal();
-  $("#payTotal").textContent=t>0?"Total to pay: "+cedi(t)+(duesPicked()===0?" (no dues, items only)":""):"Choose an amount, or tick a T-shirt or the green book";
+  $("#payTotal").textContent=t>0?"Total to pay: "+cedi(t):(PAYMODE==="dues"?"Choose the dues amount":"Tick what you want to buy");
   $("#payGo").textContent=t>0?"Pay "+cedi(t)+" with Paystack":"Choose what to pay";
 }
 /* tap an amount to select it, tap it again to deselect; only one amount at a time. The T-shirt box works the same way. */
@@ -1910,9 +2094,16 @@ $("#payO").addEventListener("change",e=>{
   if(e.target.name==="payAmt"){
     if(e.target.checked)document.querySelectorAll('input[name="payAmt"]').forEach(x=>{if(x!==e.target)x.checked=false});
     updatePayTotal();
-  }else if(e.target.id==="payShirt"||e.target.id==="payBook"||e.target.id==="payShirtStyle"||e.target.id==="pcLv")updatePayTotal();
+  }else if(e.target.id==="payShirt"||e.target.id==="payBook"||e.target.id==="payCap"||e.target.id==="payTote"||e.target.id==="payShirtStyle"||e.target.id==="pcLv")updatePayTotal();
 });
-function openPay(idPrefill,paid,min,full){
+function setPayMode(mode){
+  PAYMODE=mode;
+  $("#payDuesPart").hidden=mode!=="dues";$("#payShopPart").hidden=mode!=="shop";
+  $("#payTitle").textContent=mode==="dues"?"💳 Pay dues":"🛍️ NAMSA shop";
+  $("#payLead").textContent=mode==="dues"?"Pay your NAMSA dues. After you pay, you are signed in automatically.":"Buy NAMSA items: T-shirt or Lacoste, green book (logbook), cap / hat and tote bag. You can pick more than one.";
+}
+function openPay(idPrefill,paid,min,full,mode){
+  setPayMode(mode||"dues");
   const pct=Math.round(min/full*100),opts=[];
   if(paid>0){
     if(min-paid>0)opts.push([min-paid,"Pay "+cedi(min-paid)+" more: "+curSem().toLowerCase()]);
@@ -1920,7 +2111,7 @@ function openPay(idPrefill,paid,min,full){
   }else{opts.push([min,"Pay "+pct+"% ("+cedi(min)+"): "+curSem().toLowerCase()+" only"]);opts.push([full,"Pay in full ("+cedi(full)+"): this semester and the next"])}
   if(!opts.length)opts.push([min,"Pay "+cedi(min)]);
   $("#payOpts").innerHTML=opts.map((o,i)=>`<label class="chk"><input type="checkbox" name="payAmt" value="${o[0]}"> ${esc(o[1])}</label>`).join("");
-  $("#payShirt").checked=false;$("#payBook").checked=false;$("#payShirtSize").value="";$("#payShirtStyle").value="";$("#payShirtColor").value="";$("#payShirtT").textContent="➕ Add a NAMSA T-shirt or Lacoste (+"+cedi(shirtPrice())+")";
+  $("#payShirt").checked=false;$("#payBook").checked=false;$("#payCap").checked=false;$("#payTote").checked=false;$("#payShirtSize").value="";$("#payShirtStyle").value="";$("#payShirtColor").value="";$("#payShirtT").textContent="➕ Add a NAMSA T-shirt or Lacoste (+"+cedi(shirtPrice())+")";
   $("#payId").value=idPrefill||"";$("#payErr").textContent="";$("#payBad").hidden=true;
   updatePayTotal();
   close();open("#payO");setTimeout(()=>$(idPrefill?"#payName":"#payId").focus(),50);
@@ -1954,7 +2145,7 @@ $("#payGo").onclick=async()=>{
   const err=m=>{$("#payErr").textContent=m};
   const idLabel=$("#payId").value.trim(),id=normIdx(idLabel);
   const name=$("#payName").value.trim().replace(/\s+/g," "),email=$("#payEmail").value.trim();
-  const shirt=$("#payShirt").checked,book=$("#payBook").checked,amt=payTotal(),cv=classVals("pc");
+  const shop=PAYMODE==="shop",shirt=shop&&$("#payShirt").checked,book=shop&&$("#payBook").checked,cap=shop&&$("#payCap").checked,tote=shop&&$("#payTote").checked,amt=payTotal(),cv=classVals("pc");
   if(!classOk(cv))return err("Choose your year batch, intake, program, program type and current level.");
   if(name.length<3)return err("Enter your full name.");
   if(!id)return err("Enter your student ID.");
@@ -1962,7 +2153,7 @@ $("#payGo").onclick=async()=>{
   const shirtStyle=$("#payShirtStyle").value,shirtColor=$("#payShirtColor").value;
   if(shirt&&(!shirtStyle||!shirtColor||!shirtSize))return err("Choose the T-shirt style, colour and size.");
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return err("Enter a valid email address for your receipt.");
-  if(!isFinite(amt)||amt<=0)return err("Choose the amount you want to pay, or tick the T-shirt if you only want a T-shirt.");
+  if(!isFinite(amt)||amt<=0)return err(PAYMODE==="dues"?"Choose the dues amount you want to pay.":"Tick at least one item you want to buy.");
   if(!CONFIG.PAYSTACK_PUBLIC_KEY)return err("Online payment is not set up yet.");
   try{await loadPaystack()}catch(e){return err(e.message)}
   err("");
@@ -1971,7 +2162,7 @@ $("#payGo").onclick=async()=>{
   try{localStorage.setItem("namsa_pay_ref",ref)}catch{}
   PaystackPop.setup({
     key:CONFIG.PAYSTACK_PUBLIC_KEY,email,amount:Math.round(amt*100),currency:"GHS",ref,
-    metadata:{custom_fields:[{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"T-shirt",variable_name:"tshirt",value:shirt?"yes":"no"},{display_name:"Green book",variable_name:"greenbook",value:book?"yes":"no"},{display_name:"Shirt size",variable_name:"tshirt_size",value:shirt?shirtSize:""},{display_name:"Shirt style",variable_name:"tshirt_style",value:shirt?shirtStyle:""},{display_name:"Shirt colour",variable_name:"tshirt_color",value:shirt?shirtColor:""},{display_name:"Batch",variable_name:"year_batch",value:cv.year_batch},{display_name:"Intake",variable_name:"intake",value:cv.intake},{display_name:"Program",variable_name:"program",value:cv.program},{display_name:"Program type",variable_name:"program_type",value:cv.program_type},{display_name:"Level",variable_name:"level",value:cv.level}],tshirt:shirt},
+    metadata:{custom_fields:[{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"T-shirt",variable_name:"tshirt",value:shirt?"yes":"no"},{display_name:"Green book",variable_name:"greenbook",value:book?"yes":"no"},{display_name:"Cap",variable_name:"cap",value:cap?"yes":"no"},{display_name:"Tote",variable_name:"tote",value:tote?"yes":"no"},{display_name:"Shirt size",variable_name:"tshirt_size",value:shirt?shirtSize:""},{display_name:"Shirt style",variable_name:"tshirt_style",value:shirt?shirtStyle:""},{display_name:"Shirt colour",variable_name:"tshirt_color",value:shirt?shirtColor:""},{display_name:"Batch",variable_name:"year_batch",value:cv.year_batch},{display_name:"Intake",variable_name:"intake",value:cv.intake},{display_name:"Program",variable_name:"program",value:cv.program},{display_name:"Program type",variable_name:"program_type",value:cv.program_type},{display_name:"Level",variable_name:"level",value:cv.level}],tshirt:shirt},
     callback:function(resp){paid=true;finishPay((resp&&resp.reference)||ref)},
     onClose:function(){if(!paid){err("Checking whether your payment went through…");finishPay(ref,0,true).then(ok=>{if(!ok)err("Payment window closed. If you already paid, wait a minute, then sign in with your student ID.")})}}
   }).openIframe();
@@ -2025,15 +2216,15 @@ function renderPayAdmin(){
   $("#psFull").value=settings.dues_full||"100";
   $("#psMin").value=settings.dues_min||"50";
   $("#psShirt").value=settings.tshirt_price||"50";$("#psLaco").value=settings.lacoste_price||"70";
-  $("#psBook").value=settings.greenbook_price||"60";
+  $("#psBook").value=settings.greenbook_price||"60";$("#psCap").value=settings.cap_price||"30";$("#psTote").value=settings.tote_price||"20";
   $("#psShirt100").value=settings.tshirt_price_l100||"20";$("#psLaco100").value=settings.lacoste_price_l100||"30";
 }
 $("#paySave").onclick=async()=>{
-  const url=$("#psUrl").value.trim(),full=parseFloat($("#psFull").value),min=parseFloat($("#psMin").value),shirt=parseFloat($("#psShirt").value),laco=parseFloat($("#psLaco").value),shirt1=parseFloat($("#psShirt100").value),laco1=parseFloat($("#psLaco100").value),gb=parseFloat($("#psBook").value);
+  const url=$("#psUrl").value.trim(),full=parseFloat($("#psFull").value),min=parseFloat($("#psMin").value),shirt=parseFloat($("#psShirt").value),laco=parseFloat($("#psLaco").value),shirt1=parseFloat($("#psShirt100").value),laco1=parseFloat($("#psLaco100").value),gb=parseFloat($("#psBook").value),cp=parseFloat($("#psCap").value),tb=parseFloat($("#psTote").value);
   if(url&&!safeUrl(url))return toast("The payment link must start with https://");
   if(!(full>0)||!(min>0)||min>full)return toast("Enter valid amounts. The minimum cannot be more than the full dues.");
-  if(!(shirt>0&&laco>0&&shirt1>0&&laco1>0&&gb>0))return toast("Enter the T-shirt, Lacoste and green book prices.");
-  const {error}=await sb.from(CONFIG.SETTINGS).upsert([{key:"paystack_url",value:url},{key:"dues_full",value:String(full)},{key:"dues_min",value:String(min)},{key:"tshirt_price",value:String(shirt)},{key:"lacoste_price",value:String(laco)},{key:"tshirt_price_l100",value:String(shirt1)},{key:"lacoste_price_l100",value:String(laco1)},{key:"greenbook_price",value:String(gb)}]);
+  if(!(shirt>0&&laco>0&&shirt1>0&&laco1>0&&gb>0&&cp>0&&tb>0))return toast("Enter every price: T-shirt, Lacoste, green book, cap and tote bag.");
+  const {error}=await sb.from(CONFIG.SETTINGS).upsert([{key:"paystack_url",value:url},{key:"dues_full",value:String(full)},{key:"dues_min",value:String(min)},{key:"tshirt_price",value:String(shirt)},{key:"lacoste_price",value:String(laco)},{key:"tshirt_price_l100",value:String(shirt1)},{key:"lacoste_price_l100",value:String(laco1)},{key:"greenbook_price",value:String(gb)},{key:"cap_price",value:String(cp)},{key:"tote_price",value:String(tb)}]);
   if(error)return toast("Failed: "+error.message);
   toast("Payment settings saved");load();
 };
@@ -2065,9 +2256,10 @@ async function reportData(){
   const sh=new Map();
   try{(await fetchAll(CONFIG.TSHIRTS,"reference,amount,size,style,color","paid_at")).forEach(x=>sh.set(x.reference,x))}
   catch{try{(await fetchAll(CONFIG.TSHIRTS,"reference,amount,size","paid_at")).forEach(x=>sh.set(x.reference,x))}catch{}}
-  const bk=new Map();
+  const bk=new Map(),ex=new Map();
   try{(await fetchAll(CONFIG.BOOKS,"reference,amount","paid_at")).forEach(x=>bk.set(x.reference,x))}catch{}
-  return pays.map(r=>{const dues=Number(r.amount)||0,t=sh.get(r.reference),shirt=t?Number(t.amount)||0:0,b=bk.get(r.reference),book=b?Number(b.amount)||0:0;return{...r,dues,shirt,book,total:dues+shirt+book,size:t?t.size||"":"",style:t?t.style||"":"",color:t?t.color||"":"",d:new Date(r.paid_at)}});
+  try{(await fetchAll(CONFIG.EXTRAS,"reference,amount","paid_at")).forEach(x=>ex.set(x.reference,(ex.get(x.reference)||0)+(Number(x.amount)||0)))}catch{}
+  return pays.map(r=>{const dues=Number(r.amount)||0,t=sh.get(r.reference),shirt=t?Number(t.amount)||0:0,b=bk.get(r.reference),book=b?Number(b.amount)||0:0,extra=ex.get(r.reference)||0;return{...r,dues,shirt,book,extra,total:dues+shirt+book+extra,size:t?t.size||"":"",style:t?t.style||"":"",color:t?t.color||"":"",d:new Date(r.paid_at)}});
 }
 const weekStart=d=>{const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
 const dkey=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -2075,8 +2267,8 @@ function weekly(rows){
   const m=new Map();
   for(const r of rows){
     const k=dkey(weekStart(r.d));
-    const w=m.get(k)||{k,ids:new Set(),n:0,total:0,dues:0,shirt:0,book:0,s1:0,s2:0};
-    w.ids.add(r.index_number);w.n++;w.total+=r.total;w.dues+=r.dues;w.shirt+=r.shirt;w.book+=r.book;
+    const w=m.get(k)||{k,ids:new Set(),n:0,total:0,dues:0,shirt:0,book:0,extra:0,s1:0,s2:0};
+    w.ids.add(r.index_number);w.n++;w.total+=r.total;w.dues+=r.dues;w.shirt+=r.shirt;w.book+=r.book;w.extra+=r.extra;
     if(Number(r.semester_no)===1)w.s1++;else if(Number(r.semester_no)===2)w.s2++;
     m.set(k,w);
   }
@@ -2091,8 +2283,8 @@ $("#repShow").onclick=async()=>{
     const wk=weekly(repRows),thisK=dkey(weekStart(new Date())),tw=wk.find(w=>w.k===thisK)||{ids:new Set(),total:0};
     const cs=num(settings.semester_no,1),inSem=new Set(repRows.filter(r=>Number(r.semester_no)===cs&&(!settings.academic_year||!r.academic_year||r.academic_year===settings.academic_year)).map(r=>r.index_number)).size;
     const card=(l,v)=>`<div style="border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff"><div class="hint" style="margin:0">${l}</div><div style="font-weight:800;font-size:1.15rem;margin-top:4px">${v}</div></div>`;
-    $("#repCards").innerHTML=card("People who paid",ids.size)+card("Total received",cedi(tot))+card("Dues",cedi(du))+card("T-shirts",cedi(sh))+card("Green books",cedi(repRows.reduce((a,r)=>a+r.book,0)))+card("This week",tw.ids.size+" people · "+cedi(tw.total))+card(curSem()+" payers",inSem);
-    $("#repTable").innerHTML=wk.length?`<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr>${["Week starting","People","Payments","Total","Dues","T-shirts","Green books","1st sem","2nd sem"].map(h=>`<th style="text-align:left;padding:8px;border-bottom:2px solid var(--line)">${h}</th>`).join("")}</tr></thead><tbody>${wk.map(w=>`<tr>${[w.k,w.ids.size,w.n,cedi(w.total),cedi(w.dues),cedi(w.shirt),cedi(w.book),w.s1,w.s2].map(c=>`<td style="padding:8px;border-bottom:1px solid var(--line)">${esc(String(c))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:'<div class="hint">No payments yet.</div>';
+    $("#repCards").innerHTML=card("People who paid",ids.size)+card("Total received",cedi(tot))+card("Dues",cedi(du))+card("T-shirts",cedi(sh))+card("Green books",cedi(repRows.reduce((a,r)=>a+r.book,0)))+card("Cap & tote",cedi(repRows.reduce((a,r)=>a+r.extra,0)))+card("This week",tw.ids.size+" people · "+cedi(tw.total))+card(curSem()+" payers",inSem);
+    $("#repTable").innerHTML=wk.length?`<table style="width:100%;border-collapse:collapse;font-size:.88rem"><thead><tr>${["Week starting","People","Payments","Total","Dues","T-shirts","Green books","Cap & tote","1st sem","2nd sem"].map(h=>`<th style="text-align:left;padding:8px;border-bottom:2px solid var(--line)">${h}</th>`).join("")}</tr></thead><tbody>${wk.map(w=>`<tr>${[w.k,w.ids.size,w.n,cedi(w.total),cedi(w.dues),cedi(w.shirt),cedi(w.book),cedi(w.extra),w.s1,w.s2].map(c=>`<td style="padding:8px;border-bottom:1px solid var(--line)">${esc(String(c))}</td>`).join("")}</tr>`).join("")}</tbody></table>`:'<div class="hint">No payments yet.</div>';
     toast("Report ready");
   }catch(x){toast("Failed: "+x.message)}
 };
@@ -2101,9 +2293,9 @@ $("#repDl").onclick=async()=>{
     if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
     toast("Preparing the report…");
     const rows=await reportData(),wk=weekly(rows);
-    const w=[["Week starting","People who paid","Payments","Total received (GHS)","Dues (GHS)","T-shirts (GHS)","Green books (GHS)","First semester payments","Second semester payments"],...wk.map(x=>[x.k,x.ids.size,x.n,x.total,x.dues,x.shirt,x.book,x.s1,x.s2])];
-    const pa=[["Date","Name","Student ID","Email","Total (GHS)","Dues (GHS)","T-shirt (GHS)","Green book (GHS)","T-shirt style","T-shirt colour","T-shirt size","Semester paid for","Academic year","Reference"],...rows.slice().reverse().map(r=>[r.d.toLocaleString(),r.student_name||"",r.index_number,r.email||"",r.total,r.dues,r.shirt,r.book,r.style,r.color,r.size,covers(r),r.academic_year||"",r.reference])];
-    saveBook([["Weekly report",w,[16,16,12,20,14,14,16,22,24]],["All payments",pa,[22,28,20,28,14,14,14,14,14,12,12,26,14,28]]],"NAMSA-weekly-report-"+stamp()+".xlsx");
+    const w=[["Week starting","People who paid","Payments","Total received (GHS)","Dues (GHS)","T-shirts (GHS)","Green books (GHS)","Cap & tote (GHS)","First semester payments","Second semester payments"],...wk.map(x=>[x.k,x.ids.size,x.n,x.total,x.dues,x.shirt,x.book,x.extra,x.s1,x.s2])];
+    const pa=[["Date","Name","Student ID","Email","Total (GHS)","Dues (GHS)","T-shirt (GHS)","Green book (GHS)","Cap & tote (GHS)","T-shirt style","T-shirt colour","T-shirt size","Semester paid for","Academic year","Reference"],...rows.slice().reverse().map(r=>[r.d.toLocaleString(),r.student_name||"",r.index_number,r.email||"",r.total,r.dues,r.shirt,r.book,r.extra,r.style,r.color,r.size,covers(r),r.academic_year||"",r.reference])];
+    saveBook([["Weekly report",w,[16,16,12,20,14,14,16,14,22,24]],["All payments",pa,[22,28,20,28,14,14,14,14,14,14,12,12,26,14,28]]],"NAMSA-weekly-report-"+stamp()+".xlsx");
   }catch(x){toast("Failed: "+x.message)}
 };
 async function refreshDues(){
@@ -2150,13 +2342,17 @@ async function importDues(f,cls){
     const si=hr>=0?findCol(head,[/shirt.?(style|type)|^style$|lacoste/],ci):-1;
     const oi=hr>=0?findCol(head,[/colou?r/],ci):-1;
     const bi=hr>=0?findCol(head,[/green.?book|log.?book/],ci):-1;
+    const capI=hr>=0?findCol(head,[/\bcap\b|\bhat\b/],ci):-1;
+    const toteI=hr>=0?findCol(head,[/tote/],ci):-1;
     const full=num(settings.dues_full,100),min=num(settings.dues_min,50);
     const map=new Map();
     for(const r of rows.slice(start)){
       if(!looksId(r[ci]))continue;      /* skips serial numbers, totals and blank lines */
       const k=normIdx(r[ci]);
       const amt=ai>=0?num(String(r[ai]).replace(/[^0-9.\-]/g,""),0):full;
-      const cur=map.get(k)||{name:"",amt:0,shirt:false,size:"",style:"",color:"",book:false};
+      const cur=map.get(k)||{name:"",amt:0,shirt:false,size:"",style:"",color:"",book:false,cap:false,tote:false};
+      if(capI>=0&&/^(y|yes|paid|bought|true|1|x|✓|✔)/i.test(String(r[capI]).trim()))cur.cap=true;
+      if(toteI>=0&&/^(y|yes|paid|bought|true|1|x|✓|✔)/i.test(String(r[toteI]).trim()))cur.tote=true;
       if(bi>=0&&/^(y|yes|paid|bought|true|1|x|✓|✔)/i.test(String(r[bi]).trim()))cur.book=true;
       if(si>=0){const v=String(r[si]).trim();if(/lacoste|polo/i.test(v))cur.style="Lacoste";else if(/shirt|tee/i.test(v))cur.style="T-shirt"}
       if(oi>=0){const v=String(r[oi]).trim();if(/white/i.test(v))cur.color="White";else if(/blue/i.test(v))cur.color="Blue"}
@@ -2179,6 +2375,9 @@ async function importDues(f,cls){
     const sErr=shirts.length?await saveShirts(shirts,true,cls&&cls.level):"";
     const books=[...map].filter(([,v])=>v.book).map(([k,v])=>[k,v.name]);
     if(books.length)await saveBooks(books,true);
+    const caps=[...map].filter(([,v])=>v.cap).map(([k,v])=>[k,v.name]),totes=[...map].filter(([,v])=>v.tote).map(([k,v])=>[k,v.name]);
+    if(caps.length)await saveExtra("cap",caps,true,capPrice());
+    if(totes.length)await saveExtra("tote",totes,true,totePrice());
     toast("Saved "+all.length+" students"+(shirts.length?", "+shirts.length+" with T-shirt":"")+(sErr?" (T-shirts not saved: "+sErr+")":""));
     refreshDues();
   }catch(x){toast(x.message==="Cancelled."?"Upload cancelled":"Failed: "+x.message)}
@@ -2209,9 +2408,9 @@ $("#classDl").onclick=async()=>{
     if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
     const {c,rows}=await classRows();
     if(!rows.length)return toast("No students in that class yet.");
-    const sh=await shirtSet(),bk=await bookSet();
-    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt","T-shirt style","T-shirt colour","T-shirt size","Green book"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid",(sh.get(r.index_number)||{}).style||"",(sh.get(r.index_number)||{}).color||"",(sh.get(r.index_number)||{}).size||"",bk.has(r.index_number)?"Bought":"No"]})];
-    saveBook([["Class list",aoa,[22,34,12,12,12,14,8,16,18,12,14,14,12,12]]],"NAMSA-class-"+[c.year_batch||"all",c.intake||"all",c.program||"all",c.program_type||"all","L"+(c.level||"all")].join("-")+"-"+stamp()+".xlsx");
+    const sh=await shirtSet(),bk=await bookSet(),cp=await extraSet("cap"),tb=await extraSet("tote");
+    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt","T-shirt style","T-shirt colour","T-shirt size","Green book","Cap / hat","Tote bag"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid",(sh.get(r.index_number)||{}).style||"",(sh.get(r.index_number)||{}).color||"",(sh.get(r.index_number)||{}).size||"",bk.has(r.index_number)?"Bought":"No",cp.has(r.index_number)?"Bought":"No",tb.has(r.index_number)?"Bought":"No"]})];
+    saveBook([["Class list",aoa,[22,34,12,12,12,14,8,16,18,12,14,14,12,12,10,10]]],"NAMSA-class-"+[c.year_batch||"all",c.intake||"all",c.program||"all",c.program_type||"all","L"+(c.level||"all")].join("-")+"-"+stamp()+".xlsx");
   }catch(x){toast("Failed: "+x.message)}
 };
 $("#duesClr").onclick=async()=>{
@@ -2222,6 +2421,21 @@ $("#duesClr").onclick=async()=>{
 };
 /* records (or clears) a manually added T-shirt payment; students who paid for a T-shirt online keep theirs */
 /* green book (logbook) purchases recorded by an admin (online purchases are saved by the server) */
+/* cap / hat and tote bag purchases recorded by an admin */
+async function saveExtra(item,pairs,paid,price){
+  if(!pairs.length)return "";
+  if(paid){
+    const now=new Date().toISOString();
+    for(let i=0;i<pairs.length;i+=500){
+      const {error}=await sb.from(CONFIG.EXTRAS).upsert(pairs.slice(i,i+500).map(([k,n])=>({reference:"ADMIN-"+item+"-"+k,item,index_number:k,student_name:n||null,amount:price,paid_at:now})),{onConflict:"reference,item"});
+      if(error)return error.message;
+    }
+  }else{
+    const {error}=await sb.from(CONFIG.EXTRAS).delete().eq("item",item).in("reference",pairs.map(([k])=>"ADMIN-"+item+"-"+k));
+    if(error&&!/does not exist|relation/i.test(error.message))return error.message;
+  }
+  return "";
+}
 async function saveBooks(pairs,paid){
   if(!pairs.length)return "";
   if(paid){
@@ -2263,10 +2477,10 @@ $("#mAdd").onclick=async()=>{
   const rows=ids.map(k=>name?{index_number:k,student_name:name,amount_paid:amt,...cv}:{index_number:k,amount_paid:amt,...cv});
   const {error}=await sb.from(CONFIG.DUES).upsert(rows);
   if(error)return toast("Failed: "+error.message);
-  const bErr=await saveBooks(ids.map(k=>[k,name]),$("#mBook").value==="yes");
+  const bErr=await saveBooks(ids.map(k=>[k,name]),$("#mBook").value==="yes")||await saveExtra("cap",ids.map(k=>[k,name]),$("#mCap").value==="yes",capPrice())||await saveExtra("tote",ids.map(k=>[k,name]),$("#mTote").value==="yes",totePrice());
   const sErr=await saveShirts(ids.map(k=>[k,name,$("#mSize").value,$("#mStyle").value,$("#mColor").value]),$("#mShirt").value==="yes",cv.level);
   toast(ids.length+(ids.length>1?" students":" student")+" saved with "+cedi(amt)+($("#mShirt").value==="yes"?", T-shirt paid":"")+($("#mBook").value==="yes"?", green book bought":"")+(sErr?" (T-shirt not saved: "+sErr+")":"")+(bErr?" (green book not saved: "+bErr+")":""));
-  $("#mIdx").value="";$("#mName").value="";$("#mAmt").value="";$("#mShirt").value="no";$("#mBook").value="no";$("#mSize").value="";$("#mStyle").value="";$("#mColor").value="";refreshDues();
+  $("#mIdx").value="";$("#mName").value="";$("#mAmt").value="";$("#mShirt").value="no";$("#mBook").value="no";$("#mCap").value="no";$("#mTote").value="no";$("#mSize").value="";$("#mStyle").value="";$("#mColor").value="";refreshDues();
 };
 $("#duesQb").onclick=async()=>{
   const k=normIdx($("#duesQ").value);if(!k)return;
@@ -2285,7 +2499,7 @@ function showTab(t){
 $("#admTabs").onclick=e=>{const b=e.target.closest("[data-tab]");if(b)showTab(b.dataset.tab)};
 function openAdmin(){
   $("#admin").classList.add("show");document.body.style.overflow="hidden";
-  showTab(curTab);renderAdmin();
+  applyRole();showTab(curTab);renderAdmin();
 }
 function closeAdmin(){
   $("#admin").classList.remove("show");
@@ -2315,29 +2529,55 @@ $("#adminList").addEventListener("keydown",e=>{
   if(i&&e.key==="Enter")saveLink(i.dataset.linkin,i.value);
 });
 
-/* ---- admins (maximum 4) ---- */
-const ADM_MAX=4;
+/* ---- team and roles (managed by the server; only a Super admin can open this) ---- */
+const ROLE_NAME={super:"Super admin",finance:"Finance",editor:"Content editor"};
+const TAB_ROLES={committees:["super"],leadership:["super","editor"],pictures:["super","editor"],activities:["super","editor"],news:["super","editor"],contacts:["super","editor"],dues:["super","finance"],security:["super"],admins:["super"]};
+let myRole="super";
+function applyRole(){
+  document.querySelectorAll("#admTabs button").forEach(b=>{b.hidden=!(TAB_ROLES[b.dataset.tab]||["super"]).includes(myRole)});
+  if(!(TAB_ROLES[curTab]||["super"]).includes(myRole)){const f=[...document.querySelectorAll("#admTabs button")].find(b=>!b.hidden);if(f)showTab(f.dataset.tab)}
+  $("#who").textContent=(session&&session.user.email||"")+" · "+(ROLE_NAME[myRole]||myRole);
+}
+function genPw(){
+  const sets=["ABCDEFGHJKLMNPQRSTUVWXYZ","abcdefghijkmnpqrstuvwxyz","23456789","!@#$%&*?-_"],all=sets.join("");
+  const rnd=n=>{const b=new Uint32Array(1);crypto.getRandomValues(b);return b[0]%n};
+  const out=sets.map(x=>x[rnd(x.length)]);
+  while(out.length<16)out.push(all[rnd(all.length)]);
+  for(let i=out.length-1;i>0;i--){const j=rnd(i+1);[out[i],out[j]]=[out[j],out[i]]}
+  return out.join("");
+}
+$("#admGen").onclick=()=>{$("#admPw").value=genPw()};
 async function loadAdmins(){
   if(!sb||!session)return;
-  const r=await sb.from(CONFIG.ADMINS).select("email").order("created_at");
-  if(r.error){$("#adminsList").innerHTML='<div class="note">Could not read the admin list ('+esc(r.error.message)+'). Run the updated SQL.</div>';return}
+  const r=await sso("/admin/team",{action:"list"});
+  if(!r.ok){$("#adminsList").innerHTML='<div class="note">'+esc(r.error||"Only a Super admin can manage the team.")+'</div>';return}
   const me=(session.user.email||"").toLowerCase();
-  $("#adminsList").innerHTML=`<b>${r.data.length} of ${ADM_MAX} admins</b>`+r.data.map(a=>`<div class="item" style="margin-top:10px"><div class="t"><b>${esc(a.email)}</b>${a.email===me?"<small>You</small>":""}</div><div class="acts">${a.email===me?"":`<button class="btn red" data-adel="${esc(a.email)}">Remove</button>`}</div></div>`).join("");
-  $("#admAdd").disabled=r.data.length>=ADM_MAX;
+  $("#adminsList").innerHTML=r.admins.map(a=>`<div class="item" style="margin-top:10px"><div class="t"><b>${esc(a.email)}</b><small>${esc(ROLE_NAME[a.role]||a.role)}${a.email===me?" · You":""}</small></div><div class="acts"><button class="btn alt" data-areset="${esc(a.email)}">Reset password</button>${a.email===me?"":`<button class="btn red" data-adel="${esc(a.email)}">Remove</button>`}</div></div>`).join("");
 }
 $("#admAdd").onclick=async()=>{
-  const em=$("#admEm").value.trim().toLowerCase();
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))return toast("Enter a valid email address");
-  const {error}=await sb.from(CONFIG.ADMINS).insert({email:em});
-  if(error)return toast(/duplicate/i.test(error.message)?"That email is already an admin":/Maximum/.test(error.message)?"Maximum of 4 admins reached":"Failed: "+error.message);
-  $("#admEm").value="";toast("Admin added");loadAdmins();
+  const email=$("#admEm").value.trim().toLowerCase(),role=$("#admRole").value,password=$("#admPw").value;
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return toast("Enter a valid email address");
+  const r=await sso("/admin/team",{action:"save",email,role,password});
+  if(!r.ok)return toast(r.error||"Failed");
+  $("#admEm").value="";$("#admPw").value="";toast("Saved: "+(ROLE_NAME[role]||role));loadAdmins();
 };
 $("#adminsList").onclick=async e=>{
-  const d=e.target.closest("[data-adel]");if(!d)return;
-  if(!confirm("Remove "+d.dataset.adel+" as an admin?"))return;
-  const {error}=await sb.from(CONFIG.ADMINS).delete().eq("email",d.dataset.adel);
-  if(error)return toast("Failed: "+error.message);
-  toast("Admin removed");loadAdmins();
+  const d=e.target.closest("[data-adel]"),rs=e.target.closest("[data-areset]");
+  if(d){
+    if(!confirm("Remove "+d.dataset.adel+"? They will no longer be able to sign in."))return;
+    const r=await sso("/admin/team",{action:"remove",email:d.dataset.adel});
+    if(!r.ok)return toast(r.error||"Failed");
+    toast("Removed");loadAdmins();
+  }
+  if(rs){
+    let pw=prompt("New password for "+rs.dataset.areset+" (at least 12 characters with capital and small letters, a number and a symbol).\nLeave empty to generate a strong one:","");
+    if(pw===null)return;
+    const gen=!pw.trim();if(gen)pw=genPw();
+    const cur=(await sso("/admin/team",{action:"list"})).admins||[];const role=(cur.find(a=>a.email===rs.dataset.areset)||{}).role||"editor";
+    const r=await sso("/admin/team",{action:"save",email:rs.dataset.areset,role,password:pw});
+    if(!r.ok)return toast(r.error||"Failed");
+    alert(gen?"New password for "+rs.dataset.areset+":\n\n"+pw+"\n\nCopy it now and share it privately.":"Password changed.");
+  }
 };
 
 /* ---- scroll reveal ---- */
@@ -2561,6 +2801,7 @@ function saveBook(sheets,name){
   XLSX.writeFile(wb,name);
 }
 const stamp=()=>new Date().toISOString().slice(0,10);
+async function extraSet(item){try{return new Set((await fetchAll(CONFIG.EXTRAS,"index_number,item","index_number")).filter(x=>x.item===item).map(x=>x.index_number))}catch{return new Set()}}
 async function bookSet(){try{return new Set((await fetchAll(CONFIG.BOOKS,"index_number","index_number")).map(x=>x.index_number))}catch{return new Set()}}
 async function shirtSet(){
   let t;
@@ -2574,11 +2815,11 @@ $("#dlList").onclick=async()=>{
     if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
     toast("Preparing the list…");
     const min=num(settings.dues_min,50),rows=await loadList();
-    const sh=await shirtSet(),bk=await bookSet();
-    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt","T-shirt style","T-shirt colour","T-shirt size","Green book","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid",(sh.get(r.index_number)||{}).style||"",(sh.get(r.index_number)||{}).color||"",(sh.get(r.index_number)||{}).size||"",bk.has(r.index_number)?"Bought":"No",a>=min?"Can open committees":"Below minimum"]})];
+    const sh=await shirtSet(),bk=await bookSet(),cp=await extraSet("cap"),tb=await extraSet("tote");
+    const aoa=[["Index Number","Name","Year batch","Intake","Program","Program type","Level","Total Paid (GHS)","Semester covered","T-shirt","T-shirt style","T-shirt colour","T-shirt size","Green book","Cap / hat","Tote bag","Status"],...rows.map(r=>{const a=Number(r.amount_paid)||0;return[r.index_number,r.student_name||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",a,semFor(a),sh.has(r.index_number)?"Paid":"Not paid",(sh.get(r.index_number)||{}).style||"",(sh.get(r.index_number)||{}).color||"",(sh.get(r.index_number)||{}).size||"",bk.has(r.index_number)?"Bought":"No",cp.has(r.index_number)?"Bought":"No",tb.has(r.index_number)?"Bought":"No",a>=min?"Can open committees":"Below minimum"]})];
     const pays=await fetchAll(CONFIG.PAYMENTS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
     const pa=[["Index Number","Name","Email","Amount (GHS)","Date","Reference"],...pays.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])];
-    const sheets=[["Paid list",aoa,[22,34,12,12,12,14,8,16,18,12,14,14,12,12,22]],["Payments",pa,[20,30,30,14,22,30]]];
+    const sheets=[["Paid list",aoa,[22,34,12,12,12,14,8,16,18,12,14,14,12,12,10,10,22]],["Payments",pa,[20,30,30,14,22,30]]];
     try{
       let ts;
       try{ts=await fetchAll(CONFIG.TSHIRTS,"reference,index_number,student_name,email,amount,paid_at,size,style,color","paid_at")}
@@ -2589,6 +2830,10 @@ $("#dlList").onclick=async()=>{
       const gb=await fetchAll(CONFIG.BOOKS,"reference,index_number,student_name,email,amount,paid_at","paid_at");
       sheets.push(["Green books",[["Index Number","Name","Email","Green book (GHS)","Date","Reference"],...gb.map(r=>[r.index_number,r.student_name||"",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])],[20,30,30,16,22,30]]);
     }catch{/* green book table not created yet */}
+    try{
+      const ex=await fetchAll(CONFIG.EXTRAS,"reference,item,index_number,student_name,email,amount,paid_at","paid_at");
+      sheets.push(["Cap and tote bags",[["Index Number","Name","Item","Email","Amount (GHS)","Date","Reference"],...ex.map(r=>[r.index_number,r.student_name||"",r.item==="cap"?"Cap / hat":"Tote bag",r.email||"",Number(r.amount),new Date(r.paid_at).toLocaleString(),r.reference])],[20,30,14,30,14,22,30]]);
+    }catch{/* extras table not created yet */}
     saveBook(sheets,"NAMSA-paid-list-"+stamp()+".xlsx");
     toast("Downloaded "+rows.length+" students");
   }catch(x){toast("Failed: "+(x.message||x))}
@@ -2692,6 +2937,22 @@ $("#q").oninput=render;
 $("#burger").onclick=()=>$("#links").classList.toggle("open");
 document.querySelectorAll(".links a").forEach(a=>a.addEventListener("click",()=>$("#links").classList.remove("open")));
 $("#yr").textContent=new Date().getFullYear();
+/* ===== phone detection: the page adjusts itself to the screen ===== */
+(function(){
+  const root=document.documentElement,mqW=matchMedia("(max-width:720px)"),mqT=matchMedia("(pointer:coarse)"),ua=navigator.userAgent;
+  const apply=()=>{
+    root.classList.toggle("mobile",mqW.matches);
+    root.classList.toggle("touch",mqT.matches);
+    root.classList.toggle("ios",/iPhone|iPad|iPod/.test(ua));
+    root.classList.toggle("android",/Android/.test(ua));
+    root.classList.toggle("lite",!!(navigator.connection&&navigator.connection.saveData));
+    root.style.setProperty("--vh",(innerHeight*0.01)+"px");   /* real visible height, so pop-ups are never hidden behind the phone's address bar */
+  };
+  apply();
+  addEventListener("resize",apply);addEventListener("orientationchange",()=>setTimeout(apply,250));
+  if(mqW.addEventListener)mqW.addEventListener("change",apply);
+})();
+
 load();
 </script>
 </body>
