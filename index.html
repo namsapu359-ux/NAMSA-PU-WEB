@@ -467,6 +467,20 @@ textarea{resize:vertical;min-height:84px}
 .stline .mid{flex:1;min-width:0}.stline .mid small{color:var(--muted);display:block}
 .stqty{display:inline-flex;align-items:center;gap:8px}.stqty button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:1.1rem;cursor:pointer}
 .sttotal{display:flex;justify-content:space-between;font-weight:800;font-size:1.15rem;padding:14px 0}
+.stbar{position:sticky;bottom:0;z-index:6;margin:0 12px calc(12px + env(safe-area-inset-bottom));padding:14px 18px;border-radius:18px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 12px 30px rgba(3,20,45,.35);animation:stUp .4s cubic-bezier(.2,1.2,.4,1);cursor:pointer;font-weight:700}
+.stbar[hidden]{display:none}
+.stbar.bump{animation:stBump .55s}
+.stbarbtn{background:rgba(255,255,255,.2);padding:6px 14px;border-radius:999px;font-size:.85rem;white-space:nowrap}
+@keyframes stUp{from{transform:translateY(90px);opacity:0}}
+@keyframes stBump{30%{transform:translateY(-12px) scale(1.03)}65%{transform:translateY(0) scale(.99)}}
+#stSheet{position:absolute;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center}
+#stSheet[hidden]{display:none}
+.stback{position:absolute;inset:0;background:rgba(5,30,36,.55)}
+.stpanel{position:relative;background:#fff;width:min(640px,100%);max-height:90%;overflow:auto;border-radius:26px 26px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));animation:stSlide .32s cubic-bezier(.2,1,.3,1);-webkit-overflow-scrolling:touch}
+@keyframes stSlide{from{transform:translateY(100%)}}
+.stchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.stchips button{padding:10px 18px;border-radius:999px;border:2px solid var(--line);background:#fff;font-weight:700;cursor:pointer;font-family:inherit;font-size:.95rem}
+.stchips button.on{border-color:#0f5c93;background:#e0f2fe;color:#0c3a66}
 @media(max-width:720px){.stgrid{grid-template-columns:1fr 1fr;gap:12px;padding:12px}.sthead h2{font-size:1rem}.sthead .btn{padding:10px 12px}}
 /* the old fixed-item shop controls are replaced by the Store; keep them out of sight */
 #psShirt,#psLaco,#psShirt100,#psLaco100,#psBook,#psCap,#psTote,label[for="psShirt"],label[for="psLaco"],label[for="psShirt100"],label[for="psLaco100"],label[for="psBook"],label[for="psCap"],label[for="psTote"],#mShirt,#mSize,#mStyle,#mColor,#mBook,#mCap,#mTote{display:none!important}
@@ -759,7 +773,8 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
         <label for="prDesc">Short description (optional)</label><input type="text" id="prDesc" maxlength="200">
         <label for="prPrice">Price (GH₵)</label><input type="text" id="prPrice" inputmode="decimal" maxlength="10">
         <label for="prPrice100">Level 100 price (GH₵, optional: leave empty if the price is the same)</label><input type="text" id="prPrice100" inputmode="decimal" maxlength="10">
-        <label for="prSizes">Sizes (optional, separate with commas, e.g. Small, Medium, Large, XL)</label><input type="text" id="prSizes" maxlength="120">
+        <label class="chk" style="margin-top:8px"><input type="checkbox" id="prAsk"> Ask the buyer for a size when they tap “Add to cart”</label>
+        <label for="prSizes">Sizes to offer (only used if the box above is ticked; leave empty for Small, Medium, Large, XL, 2XL, 3XL)</label><input type="text" id="prSizes" maxlength="120">
         <label for="prColors">Colours (optional, separate with commas, e.g. Blue, White)</label><input type="text" id="prColors" maxlength="120">
         <div class="row" style="margin-top:10px"><label class="btn alt">📷 Choose picture<input type="file" id="prImg" accept="image/*" hidden></label><span class="hint" id="prImgName" style="align-self:center"></span></div>
         <label class="chk" style="margin-top:8px"><input type="checkbox" id="prActive" checked> Show this item in the store</label>
@@ -997,10 +1012,12 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
     <div class="sthead">
       <button class="btn alt" id="stClose" type="button">✕ Close</button>
       <h2 id="stTitle">🛍️ NAMSA Store</h2>
-      <button class="btn" id="stCartBtn" type="button">🛒 Cart (<span id="stCount">0</span>)</button>
+      <span style="width:84px"></span>
     </div>
     <div id="stView"></div>
+    <div class="stbar" id="stBar" hidden role="button" tabindex="0" aria-label="Open your cart"><span>🛒 <span id="stCount">0</span> item(s)<span id="stBarTotal"></span></span><span class="stbarbtn">View cart ↑</span></div>
   </div>
+  <div id="stSheet" hidden><div class="stback" id="stBack0"></div><div class="stpanel" id="stSheetBody"></div></div>
 </div>
 
 <!-- Already paid? verify payment -->
@@ -1205,7 +1222,7 @@ async function load(){
     const pr1=await sb.from(CONFIG.PRODUCTS).select("*").eq("active",true).order("sort",{ascending:true}).order("id",{ascending:true});
     products=pr1.error?[]:pr1.data;
   }
-  render();renderPeople();renderAdmin();renderBrand();renderSlides();renderCampus();renderContacts();updateCount();if($("#storeO").classList.contains("show")&&stMode==="shop")renderStoreView();
+  render();renderPeople();renderAdmin();renderBrand();renderSlides();renderCampus();renderContacts();updateCount();if($("#storeO").classList.contains("show"))renderStoreView();
   loadLinks();
 }
 
@@ -2994,28 +3011,46 @@ $("#burger").onclick=()=>$("#links").classList.toggle("open");
 document.querySelectorAll(".links a").forEach(a=>a.addEventListener("click",()=>$("#links").classList.remove("open")));
 $("#yr").textContent=new Date().getFullYear();
 /* ===== NAMSA store: pictures, cart and checkout ===== */
-let products=[],CART=[],stLevel="",stMode="shop",stDone=null,stForm={name:"",id:"",email:"",phone:""};
+const DEFAULT_SIZES="Small, Medium, Large, XL, 2XL, 3XL";
+let products=[],CART=[],stLevel="",stSheet="",stDone=null,stPend=null,stPick={size:"",color:""},stForm={name:"",id:"",email:"",phone:""};
 try{CART=JSON.parse(localStorage.getItem("namsa_cart")||"[]");if(!Array.isArray(CART))CART=[]}catch{CART=[]}
 const saveCart=()=>{try{localStorage.setItem("namsa_cart",JSON.stringify(CART))}catch{}};
 const csv=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
+const sizesOf=p=>p.ask_size===true?csv(p.sizes||DEFAULT_SIZES):[];     /* a size is asked only when the admin ticked "ask for a size" */
 const unitPrice=(p,lv)=>(lv==="100"&&p.price_l100!=null&&p.price_l100!=="")?Number(p.price_l100):Number(p.price);
 const prodOf=id=>products.find(p=>String(p.id)===String(id));
 const cartLines=lv=>CART.map((c,i)=>{const p=prodOf(c.id);return p?{i,c,p,unit:unitPrice(p,lv),sum:unitPrice(p,lv)*c.qty}:null}).filter(Boolean);
 const cartTotal=lv=>cartLines(lv).reduce((a,l)=>a+l.sum,0);
-const updateCount=()=>{$("#stCount").textContent=CART.reduce((a,c)=>a+c.qty,0)};
-function openStore(){stMode="shop";renderStoreView();open("#storeO");updateCount()}
+/* the cart bar slides up from the bottom of the store whenever the cart has something in it */
+function updateCount(bump){
+  const n=CART.reduce((a,c)=>a+c.qty,0),bar=$("#stBar");
+  $("#stCount").textContent=n;
+  $("#stBarTotal").textContent=n&&stLevel?" · "+cedi(cartTotal(stLevel)):"";
+  const show=n>0&&$("#storeO").classList.contains("show");
+  bar.hidden=!show;
+  if(bump&&show){bar.classList.remove("bump");void bar.offsetWidth;bar.classList.add("bump")}
+}
+function openSheet(mode){stSheet=mode;$("#stSheet").hidden=!mode;if(mode)renderSheet()}
+function openStore(){stDone=null;stPend=null;openSheet("");renderStoreView();open("#storeO");updateCount()}
 function readStForm(){if($("#stName")){stForm={name:$("#stName").value,id:$("#stId").value,email:$("#stEmail").value,phone:$("#stPhone").value}}if($("#stLv"))stLevel=$("#stLv").value}
 function renderStoreView(){
   const v=$("#stView");if(!v)return;
-  if(stMode==="shop"){
-    $("#stTitle").textContent="🛍️ NAMSA Store";
-    v.innerHTML=products.length?`<div class="stgrid">${products.map(p=>{
-      const img=safeUrl(p.image_url),sz=csv(p.sizes),co=csv(p.colors);
-      return `<div class="stcard" data-pid="${esc(p.id)}"><div class="stimg">${img?`<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:"🛍️"}</div><div class="stbody"><b>${esc(p.name)}</b>${p.description?`<p>${esc(p.description)}</p>`:""}<div class="stprice">${cedi(Number(p.price))}${p.price_l100!=null&&p.price_l100!==""?`<small>Level 100: ${cedi(Number(p.price_l100))}</small>`:""}</div>${sz.length?`<select data-opt="size" aria-label="Size"><option value="">Choose size</option>${sz.map(x=>`<option>${esc(x)}</option>`).join("")}</select>`:""}${co.length?`<select data-opt="color" aria-label="Colour"><option value="">Choose colour</option>${co.map(x=>`<option>${esc(x)}</option>`).join("")}</select>`:""}<button class="btn" data-add="${esc(p.id)}" type="button">Add to cart</button></div></div>`}).join("")}</div>`:'<div class="empty" style="padding:40px 16px;text-align:center">The store is being stocked. Please check back soon.</div>';
-  }else if(stMode==="cart"){
-    $("#stTitle").textContent="🛒 Your cart";
+  v.innerHTML=products.length?`<div class="stgrid">${products.map(p=>{
+    const img=safeUrl(p.image_url);
+    return `<div class="stcard" data-pid="${esc(p.id)}"><div class="stimg">${img?`<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:"🛍️"}</div><div class="stbody"><b>${esc(p.name)}</b>${p.description?`<p>${esc(p.description)}</p>`:""}<div class="stprice">${cedi(Number(p.price))}</div><button class="btn" data-add="${esc(p.id)}" type="button">Add to cart</button></div></div>`}).join("")}</div>`:'<div class="empty" style="padding:40px 16px;text-align:center">The store is being stocked. Please check back soon.</div>';
+}
+function renderSheet(){
+  const el=$("#stSheetBody");if(!el)return;
+  if(stSheet==="options"&&stPend){
+    const p=stPend,sz=sizesOf(p),co=csv(p.colors);
+    const ready=(!sz.length||stPick.size)&&(!co.length||stPick.color);
+    el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:1.1rem">${esc(p.name)}</b><button class="btn alt" id="stBack" type="button">✕</button></div>
+      ${sz.length?`<label>Choose your size</label><div class="stchips">${sz.map(x=>`<button type="button" data-pick="size" data-v="${esc(x)}" class="${stPick.size===x?"on":""}">${esc(x)}</button>`).join("")}</div>`:""}
+      ${co.length?`<label>Choose a colour</label><div class="stchips">${co.map(x=>`<button type="button" data-pick="color" data-v="${esc(x)}" class="${stPick.color===x?"on":""}">${esc(x)}</button>`).join("")}</div>`:""}
+      <button class="btn" id="stConfirm" type="button" style="width:100%" ${ready?"":"disabled"}>${ready?"Add to cart":"Choose "+(sz.length&&!stPick.size?"a size":"a colour")}</button>`;
+  }else if(stSheet==="cart"){
     const lines=cartLines(stLevel),tot=cartTotal(stLevel);
-    v.innerHTML=`<div class="stwrap"><button class="btn alt" id="stBack" type="button">← Keep shopping</button>
+    el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:1.15rem">🛒 Your cart</b><button class="btn alt" id="stBack" type="button">✕ Close</button></div>
       ${lines.length?`<div style="margin-top:8px">${lines.map(l=>{const img=safeUrl(l.p.image_url);return `<div class="stline">${img?`<img src="${esc(img)}" alt="">`:'<span class="ph">🛍️</span>'}<div class="mid"><b>${esc(l.p.name)}</b><small>${esc([l.c.size,l.c.color].filter(Boolean).join(" · "))}${[l.c.size,l.c.color].some(Boolean)?" · ":""}${cedi(l.unit)} each</small></div><div class="stqty"><button data-qty="-1" data-i="${l.i}" type="button" aria-label="Less">−</button><b>${l.c.qty}</b><button data-qty="1" data-i="${l.i}" type="button" aria-label="More">+</button></div><b style="min-width:72px;text-align:right">${cedi(l.sum)}</b><button data-rm="${l.i}" type="button" aria-label="Remove" style="border:0;background:none;font-size:1.2rem;cursor:pointer">🗑️</button></div>`}).join("")}</div>
       <div class="sttotal"><span>Total</span><span>${stLevel?cedi(tot):"Choose your level"}</span></div>
       <label for="stLv">Your level (some items are cheaper for Level 100)</label><select id="stLv"><option value="">Select level</option>${LEVELS.map(x=>`<option ${stLevel===x?"selected":""}>${x}</option>`).join("")}</select>
@@ -3024,37 +3059,41 @@ function renderStoreView(){
       <label for="stEmail">Email (your receipt is sent here)</label><input type="email" id="stEmail" maxlength="120" autocomplete="email" value="${esc(stForm.email)}">
       <label for="stPhone">Phone number (optional, so we can reach you)</label><input type="text" id="stPhone" maxlength="20" inputmode="tel" autocomplete="tel" value="${esc(stForm.phone)}">
       <div class="err" id="stErr"></div>
-      <div class="row" style="margin-top:12px"><button class="btn" id="stPay" type="button" style="width:100%">${stLevel?"Pay "+cedi(tot)+" with Paystack":"Choose your level to see the total"}</button></div></div>`
-      :'<div class="empty" style="padding:30px 0;text-align:center">Your cart is empty.</div>'}</div>`;
-  }else{
-    $("#stTitle").textContent="✅ Order confirmed";
+      <div class="row" style="margin-top:12px"><button class="btn" id="stPay" type="button" style="width:100%">${stLevel?"Pay "+cedi(tot)+" with Paystack":"Choose your level to see the total"}</button></div>`
+      :'<div class="empty" style="padding:30px 0;text-align:center">Your cart is empty.</div>'}`;
+  }else if(stSheet==="done"){
     const o=stDone||{items:[]};
-    v.innerHTML=`<div class="stwrap" style="text-align:center"><div style="font-size:3rem">🎉</div><h3>Thank you! Your payment is confirmed.</h3><p class="hint">A receipt has been emailed to you. Show it to a NAMSA executive to collect your items.</p>
+    el.innerHTML=`<div style="text-align:center"><div style="font-size:3rem">🎉</div><h3>Thank you! Your payment is confirmed.</h3><p class="hint">A receipt has been emailed to you. Show it to a NAMSA executive to collect your items.</p>
       <div style="text-align:left;max-width:520px;margin:12px auto">${(o.items||[]).map(l=>`<div class="stline"><div class="mid"><b>${esc(l.name)} × ${esc(l.qty)}</b><small>${esc([l.size,l.color].filter(Boolean).join(" · "))}</small></div><b>${cedi(Number(l.sum))}</b></div>`).join("")}<div class="sttotal"><span>Total paid</span><span>${cedi(Number(o.paid||o.total||0))}</span></div><small class="hint">Order number: ${esc(o.reference||"")}</small></div>
       <button class="btn" id="stBack" type="button">Back to the store</button></div>`;
   }
 }
-function stAdd(id,card){
+/* tapping "Add to cart": a size (and colour) is asked only for items where the admin switched that on */
+function stAdd(id){
   const p=prodOf(id);if(!p)return;
-  const sz=csv(p.sizes),co=csv(p.colors);
-  const size=card.querySelector('[data-opt="size"]')?card.querySelector('[data-opt="size"]').value:"",color=card.querySelector('[data-opt="color"]')?card.querySelector('[data-opt="color"]').value:"";
-  if(sz.length&&!size)return toast("Choose a size first.");
-  if(co.length&&!color)return toast("Choose a colour first.");
-  const hit=CART.find(c=>String(c.id)===String(id)&&c.size===size&&c.color===color);
+  if(sizesOf(p).length||csv(p.colors).length){stPend=p;stPick={size:"",color:""};openSheet("options");return}
+  stPush(p,"","");
+}
+function stPush(p,size,color){
+  const hit=CART.find(c=>String(c.id)===String(p.id)&&c.size===size&&c.color===color);
   if(hit)hit.qty=Math.min(10,hit.qty+1);else CART.push({id:p.id,qty:1,size,color});
-  saveCart();updateCount();toast("Added to your cart");
+  saveCart();updateCount(true);toast("Added to your cart");
 }
 $("#storeO").addEventListener("click",e=>{
   const t=e.target;
-  if(t.closest("#stClose")){close();return}
-  if(t.closest("#stCartBtn")){readStForm();stMode="cart";renderStoreView();return}
-  if(t.closest("#stBack")){readStForm();stMode="shop";renderStoreView();return}
-  const add=t.closest("[data-add]");if(add){stAdd(add.dataset.add,add.closest(".stcard"));return}
-  const q=t.closest("[data-qty]");if(q){readStForm();const c=CART[+q.dataset.i];if(c){c.qty=Math.max(0,Math.min(10,c.qty+(+q.dataset.qty)));if(!c.qty)CART.splice(+q.dataset.i,1)}saveCart();updateCount();renderStoreView();return}
-  const rm=t.closest("[data-rm]");if(rm){readStForm();CART.splice(+rm.dataset.rm,1);saveCart();updateCount();renderStoreView();return}
+  if(t.closest("#stClose")){openSheet("");close();return}
+  if(t.closest("#stBack")||t.closest("#stBack0")){readStForm();openSheet("");updateCount();return}
+  if(t.closest("#stBar")){openSheet("cart");return}
+  const add=t.closest("[data-add]");if(add){stAdd(add.dataset.add);return}
+  const pk=t.closest("[data-pick]");if(pk){stPick[pk.dataset.pick]=pk.dataset.v;renderSheet();return}
+  if(t.closest("#stConfirm")){if(stPend){stPush(stPend,stPick.size,stPick.color);stPend=null;openSheet("")}return}
+  const q=t.closest("[data-qty]");if(q){readStForm();const c=CART[+q.dataset.i];if(c){c.qty=Math.max(0,Math.min(10,c.qty+(+q.dataset.qty)));if(!c.qty)CART.splice(+q.dataset.i,1)}saveCart();updateCount();renderSheet();return}
+  const rm=t.closest("[data-rm]");if(rm){readStForm();CART.splice(+rm.dataset.rm,1);saveCart();updateCount();renderSheet();return}
   if(t.closest("#stPay"))stCheckout();
 });
-$("#storeO").addEventListener("change",e=>{if(e.target.id==="stLv"){readStForm();renderStoreView()}});
+$("#stBar").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openSheet("cart")}});
+$("#storeO").addEventListener("change",e=>{if(e.target.id==="stLv"){readStForm();updateCount();renderSheet()}});
+addEventListener("keydown",e=>{if(e.key==="Escape"&&stSheet)openSheet("")});
 $("#heroShop").onclick=openStore;
 $("#navStore").onclick=e=>{e.preventDefault();openStore()};
 async function stCheckout(){
@@ -3089,7 +3128,7 @@ async function verifyOrder(ref,n=0,silent=false){
   const r=await sso("/store/verify",{reference:ref});
   if(r.ok&&r.order){
     try{localStorage.removeItem("namsa_store_ref")}catch{}
-    CART=[];saveCart();updateCount();stDone=r.order;stMode="done";renderStoreView();open("#storeO");
+    CART=[];saveCart();stDone=r.order;renderStoreView();open("#storeO");openSheet("done");updateCount();
     return true;
   }
   if(silent)return false;
@@ -3106,7 +3145,7 @@ async function loadStoreAdmin(){
   if(!sb||!session||!$("#prList"))return;
   const a=await sb.from(CONFIG.PRODUCTS).select("*").order("sort",{ascending:true}).order("id",{ascending:true});
   adminProducts=a.error?[]:a.data;
-  $("#prList").innerHTML=adminProducts.length?adminProducts.map(p=>{const u=safeUrl(p.image_url);return `<div class="item"><div class="thumb">${u?`<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">`:"🛍️"}</div><div class="t"><b>${esc(p.name)}</b><small>${cedi(Number(p.price))}${p.price_l100!=null&&p.price_l100!==""?" · Level 100: "+cedi(Number(p.price_l100)):""}${p.active===false?" · hidden":""}</small></div><div class="acts"><button class="btn alt" data-pedit="${esc(p.id)}">Edit</button><button class="btn alt" data-ptoggle="${esc(p.id)}">${p.active===false?"Show":"Hide"}</button><button class="btn red" data-pdel="${esc(p.id)}">Delete</button></div></div>`}).join(""):'<div class="empty">No items yet. Add the first one above.</div>';
+  $("#prList").innerHTML=adminProducts.length?adminProducts.map(p=>{const u=safeUrl(p.image_url);return `<div class="item"><div class="thumb">${u?`<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">`:"🛍️"}</div><div class="t"><b>${esc(p.name)}</b><small>${cedi(Number(p.price))}${p.price_l100!=null&&p.price_l100!==""?" · Level 100: "+cedi(Number(p.price_l100)):""}${p.ask_size===true?" · asks size":""}${p.active===false?" · hidden":""}</small></div><div class="acts"><button class="btn alt" data-pedit="${esc(p.id)}">Edit</button><button class="btn alt" data-ptoggle="${esc(p.id)}">${p.active===false?"Show":"Hide"}</button><button class="btn red" data-pdel="${esc(p.id)}">Delete</button></div></div>`}).join(""):'<div class="empty">No items yet. Add the first one above.</div>';
   await loadOrders();
 }
 let adminOrders=[];
@@ -3138,7 +3177,7 @@ $("#orDl").onclick=async()=>{
 };
 let prImgFile=null;
 $("#prImg").onchange=e=>{prImgFile=e.target.files[0]||null;$("#prImgName").textContent=prImgFile?prImgFile.name+" (will be shrunk to 50 KB)":""};
-function prReset(){["prId","prName","prDesc","prPrice","prPrice100","prSizes","prColors"].forEach(i=>$("#"+i).value="");$("#prActive").checked=true;$("#prImg").value="";prImgFile=null;$("#prImgName").textContent="";$("#prCancel").hidden=true;$("#prSave").textContent="Save item"}
+function prReset(){["prId","prName","prDesc","prPrice","prPrice100","prSizes","prColors"].forEach(i=>$("#"+i).value="");$("#prActive").checked=true;$("#prAsk").checked=false;$("#prImg").value="";prImgFile=null;$("#prImgName").textContent="";$("#prCancel").hidden=true;$("#prSave").textContent="Save item"}
 $("#prCancel").onclick=prReset;
 $("#prSave").onclick=async()=>{
   const id=$("#prId").value,name=$("#prName").value.trim(),price=parseFloat($("#prPrice").value),p100raw=$("#prPrice100").value.trim(),p100=p100raw===""?null:parseFloat(p100raw);
@@ -3150,7 +3189,7 @@ $("#prSave").onclick=async()=>{
   try{
     if(prImgFile){toast("Shrinking and uploading the picture…");image_url=(await uploadMedia(prImgFile,"store",false)).url}
   }catch(x){return toast("Failed: "+x.message)}
-  const row={name,description:$("#prDesc").value.trim()||null,price,price_l100:p100,sizes:csv($("#prSizes").value).join(", ")||null,colors:csv($("#prColors").value).join(", ")||null,image_url,active:$("#prActive").checked};
+  const row={name,description:$("#prDesc").value.trim()||null,price,price_l100:p100,ask_size:$("#prAsk").checked,sizes:$("#prAsk").checked?(csv($("#prSizes").value).join(", ")||DEFAULT_SIZES):null,colors:csv($("#prColors").value).join(", ")||null,image_url,active:$("#prActive").checked};
   const {error}=id?await sb.from(CONFIG.PRODUCTS).update(row).eq("id",id):await sb.from(CONFIG.PRODUCTS).insert({...row,sort:adminProducts.length});
   if(error){if(prImgFile&&image_url)dropFile(image_url);return toast("Failed: "+error.message)}
   if(old&&prImgFile&&old.image_url)dropFile(old.image_url);
@@ -3159,7 +3198,7 @@ $("#prSave").onclick=async()=>{
 $("#prList").onclick=async e=>{
   const ed=e.target.closest("[data-pedit]"),tg=e.target.closest("[data-ptoggle]"),del=e.target.closest("[data-pdel]");
   if(ed){const p=adminProducts.find(x=>String(x.id)===ed.dataset.pedit);if(!p)return;
-    $("#prId").value=p.id;$("#prName").value=p.name||"";$("#prDesc").value=p.description||"";$("#prPrice").value=p.price;$("#prPrice100").value=p.price_l100==null?"":p.price_l100;$("#prSizes").value=p.sizes||"";$("#prColors").value=p.colors||"";$("#prActive").checked=p.active!==false;$("#prCancel").hidden=false;$("#prSave").textContent="Update item";$("#prName").focus()}
+    $("#prId").value=p.id;$("#prName").value=p.name||"";$("#prDesc").value=p.description||"";$("#prPrice").value=p.price;$("#prPrice100").value=p.price_l100==null?"":p.price_l100;$("#prAsk").checked=p.ask_size===true;$("#prSizes").value=p.sizes||"";$("#prColors").value=p.colors||"";$("#prActive").checked=p.active!==false;$("#prCancel").hidden=false;$("#prSave").textContent="Update item";$("#prName").focus()}
   if(tg){const p=adminProducts.find(x=>String(x.id)===tg.dataset.ptoggle);if(!p)return;const {error}=await sb.from(CONFIG.PRODUCTS).update({active:p.active===false}).eq("id",p.id);if(error)return toast("Failed: "+error.message);load();loadStoreAdmin()}
   if(del){if(!confirm("Delete this item from the store?"))return;const p=adminProducts.find(x=>String(x.id)===del.dataset.pdel);const {error}=await sb.from(CONFIG.PRODUCTS).delete().eq("id",del.dataset.pdel);if(error)return toast("Delete failed: "+error.message);if(p&&p.image_url)dropFile(p.image_url);toast("Deleted");load();loadStoreAdmin()}
 };
