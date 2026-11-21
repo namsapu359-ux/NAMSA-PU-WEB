@@ -3012,7 +3012,7 @@ document.querySelectorAll(".links a").forEach(a=>a.addEventListener("click",()=>
 $("#yr").textContent=new Date().getFullYear();
 /* ===== NAMSA store: pictures, cart and checkout ===== */
 const DEFAULT_SIZES="Small, Medium, Large, XL, 2XL, 3XL";
-let products=[],CART=[],stLevel="",stSheet="",stDone=null,stPend=null,stPick={size:"",color:""},stForm={name:"",id:"",email:"",phone:""};
+let products=[],CART=[],stLevel="",stCls={year_batch:"",intake:"",program:"",program_type:""},stSheet="",stDone=null,stPend=null,stPick={size:"",color:""},stForm={name:"",id:"",email:"",phone:""};
 try{CART=JSON.parse(localStorage.getItem("namsa_cart")||"[]");if(!Array.isArray(CART))CART=[]}catch{CART=[]}
 const saveCart=()=>{try{localStorage.setItem("namsa_cart",JSON.stringify(CART))}catch{}};
 const csv=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
@@ -3032,7 +3032,11 @@ function updateCount(bump){
 }
 function openSheet(mode){stSheet=mode;$("#stSheet").hidden=!mode;if(mode)renderSheet()}
 function openStore(){stDone=null;stPend=null;openSheet("");renderStoreView();open("#storeO");updateCount()}
-function readStForm(){if($("#stName")){stForm={name:$("#stName").value,id:$("#stId").value,email:$("#stEmail").value,phone:$("#stPhone").value}}if($("#stLv"))stLevel=$("#stLv").value}
+function readStForm(){
+  if($("#stName")){stForm={name:$("#stName").value,id:$("#stId").value,email:$("#stEmail").value,phone:$("#stPhone").value}}
+  if($("#stLv"))stLevel=$("#stLv").value;
+  if($("#stYr"))stCls={year_batch:$("#stYr").value,intake:$("#stIn").value,program:$("#stPr").value,program_type:$("#stPt").value};
+}
 function renderStoreView(){
   const v=$("#stView");if(!v)return;
   v.innerHTML=products.length?`<div class="stgrid">${products.map(p=>{
@@ -3052,14 +3056,15 @@ function renderSheet(){
     const lines=cartLines(stLevel),tot=cartTotal(stLevel);
     el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:1.15rem">🛒 Your cart</b><button class="btn alt" id="stBack" type="button">✕ Close</button></div>
       ${lines.length?`<div style="margin-top:8px">${lines.map(l=>{const img=safeUrl(l.p.image_url);return `<div class="stline">${img?`<img src="${esc(img)}" alt="">`:'<span class="ph">🛍️</span>'}<div class="mid"><b>${esc(l.p.name)}</b><small>${esc([l.c.size,l.c.color].filter(Boolean).join(" · "))}${[l.c.size,l.c.color].some(Boolean)?" · ":""}${cedi(l.unit)} each</small></div><div class="stqty"><button data-qty="-1" data-i="${l.i}" type="button" aria-label="Less">−</button><b>${l.c.qty}</b><button data-qty="1" data-i="${l.i}" type="button" aria-label="More">+</button></div><b style="min-width:72px;text-align:right">${cedi(l.sum)}</b><button data-rm="${l.i}" type="button" aria-label="Remove" style="border:0;background:none;font-size:1.2rem;cursor:pointer">🗑️</button></div>`}).join("")}</div>
-      <div class="sttotal"><span>Total</span><span>${stLevel?cedi(tot):"Choose your level"}</span></div>
-      <label for="stLv">Your level (some items are cheaper for Level 100)</label><select id="stLv"><option value="">Select level</option>${LEVELS.map(x=>`<option ${stLevel===x?"selected":""}>${x}</option>`).join("")}</select>
+      <div class="sttotal"><span>Total</span><span>${stLevel?cedi(tot):"Choose your level below"}</span></div>
+      ${(()=>{const sel=(id,label,arr,cur,ph)=>`<label for="${id}">${label}</label><select id="${id}"><option value="">${ph}</option>${arr.map(x=>`<option ${cur===x?"selected":""}>${x}</option>`).join("")}</select>`;
+        return sel("stYr","Year batch (year of intake)",YEARS,stCls.year_batch,"Select year batch")+sel("stIn","Intake (January or September)",INTAKES,stCls.intake,"Select intake")+sel("stPr","Program (Regular, Access or Top-up)",PROGRAMS,stCls.program,"Select program")+sel("stPt","Program type (Nursing or Midwifery)",PTYPES,stCls.program_type,"Select program type")+sel("stLv","Current level",LEVELS,stLevel,"Select level")})()}
       <label for="stName">Full name</label><input type="text" id="stName" maxlength="120" autocomplete="name" value="${esc(stForm.name)}">
       <label for="stId">Student ID (index number)</label><input type="text" id="stId" maxlength="40" autocomplete="off" value="${esc(stForm.id)}">
       <label for="stEmail">Email (your receipt is sent here)</label><input type="email" id="stEmail" maxlength="120" autocomplete="email" value="${esc(stForm.email)}">
       <label for="stPhone">Phone number (optional, so we can reach you)</label><input type="text" id="stPhone" maxlength="20" inputmode="tel" autocomplete="tel" value="${esc(stForm.phone)}">
       <div class="err" id="stErr"></div>
-      <div class="row" style="margin-top:12px"><button class="btn" id="stPay" type="button" style="width:100%">${stLevel?"Pay "+cedi(tot)+" with Paystack":"Choose your level to see the total"}</button></div>`
+      <div class="row" style="margin-top:12px"><button class="btn" id="stPay" type="button" style="width:100%">${stLevel?"Pay "+cedi(tot)+" with Paystack":"Fill in your class to see the total"}</button></div>`
       :'<div class="empty" style="padding:30px 0;text-align:center">Your cart is empty.</div>'}`;
   }else if(stSheet==="done"){
     const o=stDone||{items:[]};
@@ -3101,7 +3106,7 @@ async function stCheckout(){
   const err=m=>{const x=$("#stErr");if(x)x.textContent=m};
   const lines=cartLines(stLevel);
   if(!lines.length)return err("Your cart is empty.");
-  if(!stLevel)return err("Choose your level.");
+  if(!(stCls.year_batch&&stCls.intake&&stCls.program&&stCls.program_type&&stLevel))return err("Choose your year batch, intake, program, program type and current level.");
   const name=stForm.name.trim().replace(/\s+/g," "),idLabel=stForm.id.trim(),email=stForm.email.trim(),phone=stForm.phone.trim();
   if(name.length<3)return err("Enter your full name.");
   if(!normIdx(idLabel))return err("Enter your student ID.");
@@ -3117,7 +3122,7 @@ async function stCheckout(){
   try{localStorage.setItem("namsa_store_ref",ref)}catch{}
   PaystackPop.setup({
     key:CONFIG.PAYSTACK_PUBLIC_KEY,email,amount:Math.round(total*100),currency:"GHS",ref,
-    metadata:{custom_fields:[{display_name:"Store order",variable_name:"store",value:"yes"},{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"Phone",variable_name:"phone",value:phone},{display_name:"Level",variable_name:"level",value:stLevel},{display_name:"Cart",variable_name:"cart",value:JSON.stringify(CART.map(c=>({p:c.id,q:c.qty,s:c.size||"",c:c.color||""})))}]},
+    metadata:{custom_fields:[{display_name:"Store order",variable_name:"store",value:"yes"},{display_name:"Student ID",variable_name:"index_number",value:idLabel},{display_name:"Full name",variable_name:"full_name",value:name},{display_name:"Phone",variable_name:"phone",value:phone},{display_name:"Level",variable_name:"level",value:stLevel},{display_name:"Batch",variable_name:"year_batch",value:stCls.year_batch},{display_name:"Intake",variable_name:"intake",value:stCls.intake},{display_name:"Program",variable_name:"program",value:stCls.program},{display_name:"Program type",variable_name:"program_type",value:stCls.program_type},{display_name:"Cart",variable_name:"cart",value:JSON.stringify(CART.map(c=>({p:c.id,q:c.qty,s:c.size||"",c:c.color||""})))}]},
     callback:function(resp){paid=true;verifyOrder((resp&&resp.reference)||ref)},
     onClose:function(){if(!paid){err("Checking whether your payment went through…");verifyOrder(ref,0,true).then(ok=>{if(!ok)err("Payment window closed. If you already paid, wait a minute and reopen the store: your order will be confirmed automatically.")})}}
   }).openIframe();
@@ -3152,7 +3157,7 @@ let adminOrders=[];
 async function loadOrders(){
   const o=await sb.from(CONFIG.ORDERS).select("*").order("created_at",{ascending:false}).limit(200);
   adminOrders=o.error?[]:o.data;
-  $("#orList").innerHTML=adminOrders.length?adminOrders.map(r=>{const its=Array.isArray(r.items)?r.items:[];return `<div class="item" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b>${esc(r.student_name||"")} · ${esc(r.index_number||"")}</b><span>${cedi(Number(r.total))} ${r.status==="paid"?"✅":'<span style="color:#b91c1c;font-weight:700">⚠ check amount</span>'}${r.fulfilled?" · collected":""}</span></div><small class="hint">${esc(new Date(r.created_at).toLocaleString())}${r.phone?" · "+esc(r.phone):""} · ${esc(r.email||"")} · Level ${esc(r.level||"")}</small><div style="margin:6px 0">${its.map(l=>`${esc(l.name)} × ${esc(l.qty)}${[l.size,l.color].some(Boolean)?" ("+esc([l.size,l.color].filter(Boolean).join(", "))+")":""}`).join("<br>")}</div><button class="btn alt" data-ofill="${esc(r.reference)}" type="button">${r.fulfilled?"Mark as not collected":"Mark as collected"}</button></div>`}).join(""):'<div class="empty">No orders yet.</div>';
+  $("#orList").innerHTML=adminOrders.length?adminOrders.map(r=>{const its=Array.isArray(r.items)?r.items:[];return `<div class="item" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b>${esc(r.student_name||"")} · ${esc(r.index_number||"")}</b><span>${cedi(Number(r.total))} ${r.status==="paid"?"✅":'<span style="color:#b91c1c;font-weight:700">⚠ check amount</span>'}${r.fulfilled?" · collected":""}</span></div><small class="hint">${esc(new Date(r.created_at).toLocaleString())}${r.phone?" · "+esc(r.phone):""} · ${esc(r.email||"")} · ${esc([r.year_batch&&r.year_batch+" batch",r.intake&&r.intake+" intake",r.program,r.program_type,r.level&&"Level "+r.level].filter(Boolean).join(" · "))}</small><div style="margin:6px 0">${its.map(l=>`${esc(l.name)} × ${esc(l.qty)}${[l.size,l.color].some(Boolean)?" ("+esc([l.size,l.color].filter(Boolean).join(", "))+")":""}`).join("<br>")}</div><button class="btn alt" data-ofill="${esc(r.reference)}" type="button">${r.fulfilled?"Mark as not collected":"Mark as collected"}</button></div>`}).join(""):'<div class="empty">No orders yet.</div>';
 }
 $("#orRefresh").onclick=loadOrders;
 $("#orList").onclick=async e=>{
@@ -3168,11 +3173,11 @@ $("#orDl").onclick=async()=>{
     const o=await sb.from(CONFIG.ORDERS).select("*").order("created_at",{ascending:false});
     if(o.error)throw o.error;
     const rows=o.data;if(!rows.length)return toast("No orders yet.");
-    const lines=rows.map(r=>[new Date(r.created_at).toLocaleString(),r.reference,r.student_name||"",r.index_number||"",r.phone||"",r.email||"",r.level||"",(Array.isArray(r.items)?r.items:[]).map(l=>l.name+" x"+l.qty+([l.size,l.color].some(Boolean)?" ("+[l.size,l.color].filter(Boolean).join(", ")+")":"")).join("; "),Number(r.total),Number(r.paid_amount),r.status==="paid"?"Paid":"Check amount",r.fulfilled?"Yes":"No"]);
+    const lines=rows.map(r=>[new Date(r.created_at).toLocaleString(),r.reference,r.student_name||"",r.index_number||"",r.phone||"",r.email||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",(Array.isArray(r.items)?r.items:[]).map(l=>l.name+" x"+l.qty+([l.size,l.color].some(Boolean)?" ("+[l.size,l.color].filter(Boolean).join(", ")+")":"")).join("; "),Number(r.total),Number(r.paid_amount),r.status==="paid"?"Paid":"Check amount",r.fulfilled?"Yes":"No"]);
     const tally=new Map();
     rows.filter(r=>r.status==="paid").forEach(r=>(Array.isArray(r.items)?r.items:[]).forEach(l=>{const k=[l.name,l.size||"",l.color||""].join("|");tally.set(k,(tally.get(k)||0)+Number(l.qty||0))}));
     const sum=[["Item","Size","Colour","Quantity to order"],...[...tally].map(([k,q])=>[...k.split("|"),q])];
-    saveBook([["Orders",[["Date","Order number","Name","Student ID","Phone","Email","Level","Items","Total (GHS)","Paid (GHS)","Status","Collected"],...lines],[22,26,26,18,16,28,8,50,12,12,14,10]],["Quantities to order",sum,[30,12,12,18]]],"NAMSA-store-orders-"+stamp()+".xlsx");
+    saveBook([["Orders",[["Date","Order number","Name","Student ID","Phone","Email","Year batch","Intake","Program","Program type","Level","Items","Total (GHS)","Paid (GHS)","Status","Collected"],...lines],[22,26,26,18,16,28,12,12,12,14,8,50,12,12,14,10]],["Quantities to order",sum,[30,12,12,18]]],"NAMSA-store-orders-"+stamp()+".xlsx");
   }catch(x){toast("Failed: "+x.message)}
 };
 let prImgFile=null;
