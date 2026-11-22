@@ -607,7 +607,6 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
       <a href="#home">Home</a>
       <a href="#announcements" id="navAnn" hidden>Announcements</a>
       <a href="#activities" id="navAct" hidden>Activities</a>
-      <a href="#contact" id="navCon" hidden>Contact</a>
       <a href="#" id="navStore">Store</a>
       <a href="#leadership">Leadership</a>
       <a href="#committees">Committees</a>
@@ -717,7 +716,7 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
   </section>
 </main>
 
-<section id="contact" hidden>
+<section id="contactSec" hidden>
   <div class="wrap">
     <div class="sec-h"><span class="eyebrow">Get in touch</span><h2>Contact NAMSA</h2><p>Call or write to us.</p></div>
     <div class="acgrid" id="conList"></div>
@@ -1331,7 +1330,8 @@ function renderCampus(){
 /* ---- contacts ---- */
 const telHref=v=>"tel:"+String(v).replace(/[^+0-9]/g,"");
 function renderContacts(){
-  $("#contact").hidden=!contacts.length;$("#navCon").hidden=!contacts.length;
+  $("#contactSec").hidden=!contacts.length;
+  const cl=document.querySelector('.links a[href="#contact"],.links a[href="#contactSec"]');if(cl)cl.setAttribute("href",contacts.length?"#contactSec":"#contact");   /* the menu's Contact link goes to the new section when it exists */
   $("#conList").innerHTML=contacts.map(c=>`<div class="accard" style="padding:16px"><b style="display:block;margin-bottom:6px">${esc(c.label)}</b>${c.phone?`<div><a href="${esc(telHref(c.phone))}">📞 ${esc(c.phone)}</a></div>`:""}${c.email?`<div style="word-break:break-all"><a href="mailto:${esc(c.email)}">✉️ ${esc(c.email)}</a></div>`:""}</div>`).join("");
   const l=$("#ctList");
   if(l)l.innerHTML=contacts.length?contacts.map(c=>`<div class="item"><div class="t"><b>${esc(c.label)}</b><small>${esc([c.phone,c.email].filter(Boolean).join(" · "))}</small></div><div class="acts"><button class="btn alt" data-ctedit="${esc(c.id)}">Edit</button><button class="btn red" data-ctdel="${esc(c.id)}">Delete</button></div></div>`).join(""):'<div class="empty">No contacts yet. Add the first one above.</div>';
@@ -3121,7 +3121,7 @@ async function fetchProducts(){
   products=r.error?[]:r.data;
 }
 function openStore(){
-  stDone=null;stPend=null;closeViewer();openSheet("");renderStoreView();open("#storeO");updateCount();
+  stDone=null;stPend=null;closeItemViewer();openSheet("");renderStoreView();open("#storeO");updateCount();
   fetchProducts().then(()=>{renderStoreView();updateCount()});   /* always show the latest items, even if the page was opened long ago */
 }
 function readStForm(){
@@ -3178,10 +3178,10 @@ function stPush(p,size,color){
 }
 $("#storeO").addEventListener("click",e=>{
   const t=e.target;
-  if(t.closest("#stClose")){closeViewer();openSheet("");close();return}
+  if(t.closest("#stClose")){closeItemViewer();openSheet("");close();return}
   if(t.closest("#stBack")||t.closest("#stBack0")){readStForm();openSheet("");updateCount();return}
   if(t.closest("#stBar")){openSheet("cart");return}
-  const vw=t.closest("[data-view]");if(vw&&!t.closest("[data-add]")){openViewer(vw.dataset.view);return}
+  const vw=t.closest("[data-view]");if(vw&&!t.closest("[data-add]")){openItemViewer(vw.dataset.view);return}
   const add=t.closest("[data-add]");if(add){stAdd(add.dataset.add);return}
   const pk=t.closest("[data-pick]");if(pk){stPick[pk.dataset.pick]=pk.dataset.v;renderSheet();return}
   if(t.closest("#stConfirm")){if(stPend){stPush(stPend,stPick.size,stPick.color);stPend=null;openSheet("")}return}
@@ -3241,7 +3241,7 @@ setTimeout(()=>{try{const pr=localStorage.getItem("namsa_store_ref");if(pr){loca
 const VW={p:null,frames:[],i:0,z:1,x:0,y:0,r:0,auto:false,pts:new Map(),run:false,moved:false,pinch:null,tap:0};
 const vwClamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const vwFrames=p=>[p.image_url,...(Array.isArray(p.gallery)?p.gallery:[])].map(u=>safeUrl(u)).filter(Boolean);
-function openViewer(id){
+function openItemViewer(id){
   const p=prodOf(id);if(!p)return;
   Object.assign(VW,{p,frames:vwFrames(p),i:0,z:1,x:0,y:0,r:0,auto:false,pts:new Map(),pinch:null});
   VW.frames.forEach(u=>{const im=new Image();im.src=u});
@@ -3252,7 +3252,7 @@ function openViewer(id){
   $("#vwAuto").textContent="▶ Auto spin";$("#vwImg").dataset.k="";
   $("#stViewer").hidden=false;vwDraw();vwKick();
 }
-function closeViewer(){$("#stViewer").hidden=true;VW.auto=false}
+function closeItemViewer(){$("#stViewer").hidden=true;VW.auto=false}
 function vwDraw(){
   const n=VW.frames.length,img=$("#vwImg");if(!n)return;
   const idx=((Math.round(VW.i)%n)+n)%n;
@@ -3296,10 +3296,10 @@ const vwKick=()=>{if(!VW.run){VW.run=true;requestAnimationFrame(vwLoop)}};
   $("#vwOut").onclick=()=>{VW.z=vwClamp(VW.z/1.35,1,5);if(VW.z<=1.02){VW.x=0;VW.y=0}vwDraw()};
   $("#vwAuto").onclick=()=>{VW.auto=!VW.auto;$("#vwAuto").textContent=VW.auto?"⏸ Stop":"▶ Auto spin"};
   $("#vwReset").onclick=()=>{Object.assign(VW,{z:1,x:0,y:0,r:0,i:0,auto:false});$("#vwAuto").textContent="▶ Auto spin";vwDraw()};
-  $("#vwAdd").onclick=()=>{const id=VW.p&&VW.p.id;closeViewer();if(id!=null)stAdd(id)};
+  $("#vwAdd").onclick=()=>{const id=VW.p&&VW.p.id;closeItemViewer();if(id!=null)stAdd(id)};
   addEventListener("keydown",e=>{
     if($("#stViewer").hidden)return;
-    if(e.key==="Escape")closeViewer();
+    if(e.key==="Escape")closeItemViewer();
     else if(e.key==="ArrowLeft"){VW.i-=1;if(VW.frames.length<2)VW.r-=15;vwDraw()}
     else if(e.key==="ArrowRight"){VW.i+=1;if(VW.frames.length<2)VW.r+=15;vwDraw()}
     else if(e.key==="+"||e.key==="="){VW.z=vwClamp(VW.z*1.35,1,5);vwDraw()}
