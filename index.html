@@ -470,6 +470,27 @@ textarea{resize:vertical;min-height:84px}
 .adtag .adlabel{background:rgba(4,20,40,.72);color:#fff;padding:5px 12px;border-radius:999px}
 .adtag a{background:#fff;color:var(--deep);padding:5px 12px;border-radius:999px;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .adtag a[hidden]{display:none}
+/* ---- item viewer: zoom, rotate and spin ---- */
+#stViewer{position:absolute;inset:0;z-index:30;background:#0b2238;display:flex;flex-direction:column}
+#stViewer[hidden]{display:none}
+.vwtop{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 14px 10px;color:#fff}
+.vwtop b{flex:1;text-align:center;font-size:1.05rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vwtop span{font-weight:800;color:#bae6fd}
+.vwstage{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;cursor:grab;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,#16406a,#0b2238 70%)}
+.vwstage:active{cursor:grabbing}
+.vwstage img{max-width:92%;max-height:92%;object-fit:contain;user-select:none;-webkit-user-drag:none;will-change:transform;border-radius:14px;background:#fff;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.vwbadge{position:absolute;left:14px;top:12px;background:rgba(255,255,255,.18);color:#fff;font-weight:800;padding:5px 12px;border-radius:999px;font-size:.85rem}
+.vwhint{color:#bcd6ee;font-size:.82rem;text-align:center;padding:8px 14px 2px}
+.vwbar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:8px 12px}
+.vwbar button{min-width:46px;height:46px;padding:0 14px;border-radius:23px;border:0;background:rgba(255,255,255,.16);color:#fff;font-size:1.25rem;font-weight:700;cursor:pointer;font-family:inherit}
+.vwbar button#vwAuto,.vwbar button#vwReset{font-size:.9rem}
+.vwbuy{padding:6px 14px calc(14px + env(safe-area-inset-bottom))}
+.stimg{position:relative;cursor:zoom-in}
+.stimg .stv{position:absolute;right:8px;bottom:8px;background:rgba(4,20,40,.72);color:#fff;font-size:.74rem;font-weight:700;padding:4px 10px;border-radius:999px}
+.stbody b{cursor:pointer}
+.galth{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+.galth img{width:100%;height:100%;object-fit:cover}
+.galth button{position:absolute;right:2px;top:2px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:.75rem;cursor:pointer;line-height:1}
 /* ---- NAMSA store ---- */
 #storeO{align-items:stretch;justify-content:center;padding:0}
 .storepage{background:#fff;width:min(1100px,100%);height:100%;overflow:auto;position:relative;-webkit-overflow-scrolling:touch}
@@ -803,6 +824,10 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
         <label class="chk" style="margin-top:8px"><input type="checkbox" id="prAsk"> Ask the buyer for a size when they tap “Add to cart”</label>
         <label for="prSizes">Sizes to offer (only used if the box above is ticked; leave empty for Small, Medium, Large, XL, 2XL, 3XL)</label><input type="text" id="prSizes" maxlength="120">
         <label for="prColors">Colours (optional, separate with commas, e.g. Blue, White)</label><input type="text" id="prColors" maxlength="120">
+        <label style="margin-top:10px">360° / angle photos (optional)</label>
+        <div class="hint">Take photos going around the item (front, side, back, the other side…) and choose them all at once. They are sorted by file name, so name them 1, 2, 3… Customers can then spin the item. The main picture below is shown first.</div>
+        <div class="row" style="margin-top:6px"><label class="btn alt">📸 Add angle photos<input type="file" id="prGal" accept="image/*" multiple hidden></label><span class="hint" id="prGalName" style="align-self:center"></span></div>
+        <div id="prGalList" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
         <div class="row" style="margin-top:10px"><label class="btn alt">📷 Choose picture<input type="file" id="prImg" accept="image/*" hidden></label><span class="hint" id="prImgName" style="align-self:center"></span></div>
         <label class="chk" style="margin-top:8px"><input type="checkbox" id="prActive" checked> Show this item in the store</label>
         <div class="row" style="margin-top:12px"><button class="btn" id="prSave" type="button">Save item</button><button class="btn alt" id="prCancel" type="button" hidden>Cancel edit</button></div>
@@ -1056,6 +1081,17 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
     </div>
     <div id="stView"></div>
     <div class="stbar" id="stBar" hidden role="button" tabindex="0" aria-label="Open your cart"><span>🛒 <span id="stCount">0</span> item(s)<span id="stBarTotal"></span></span><span class="stbarbtn">View cart ↑</span></div>
+  </div>
+  <div id="stViewer" hidden role="dialog" aria-label="Look at the item">
+    <div class="vwtop"><button class="btn alt" id="vwClose" type="button">✕ Close</button><b id="vwTitle"></b><span id="vwPrice"></span></div>
+    <div class="vwstage" id="vwStage"><img id="vwImg" alt="" draggable="false"><span class="vwbadge" id="vwBadge">360°</span></div>
+    <div class="vwhint" id="vwHint"></div>
+    <div class="vwbar">
+      <button type="button" id="vwRotL" aria-label="Rotate left">⟲</button><button type="button" id="vwRotR" aria-label="Rotate right">⟳</button>
+      <button type="button" id="vwOut" aria-label="Zoom out">−</button><button type="button" id="vwIn" aria-label="Zoom in">+</button>
+      <button type="button" id="vwAuto">▶ Auto spin</button><button type="button" id="vwReset">Reset</button>
+    </div>
+    <div class="vwbuy"><button class="btn" id="vwAdd" type="button" style="width:100%">Add to cart</button></div>
   </div>
   <div id="stSheet" hidden><div class="stback" id="stBack0"></div><div class="stpanel" id="stSheetBody"></div></div>
 </div>
@@ -3085,7 +3121,7 @@ async function fetchProducts(){
   products=r.error?[]:r.data;
 }
 function openStore(){
-  stDone=null;stPend=null;openSheet("");renderStoreView();open("#storeO");updateCount();
+  stDone=null;stPend=null;closeViewer();openSheet("");renderStoreView();open("#storeO");updateCount();
   fetchProducts().then(()=>{renderStoreView();updateCount()});   /* always show the latest items, even if the page was opened long ago */
 }
 function readStForm(){
@@ -3097,7 +3133,7 @@ function renderStoreView(){
   const v=$("#stView");if(!v)return;
   v.innerHTML=products.length?`<div class="stgrid">${products.map(p=>{
     const img=safeUrl(p.image_url);
-    return `<div class="stcard" data-pid="${esc(p.id)}"><div class="stimg">${img?`<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:"🛍️"}</div><div class="stbody"><b>${esc(p.name)}</b>${p.description?`<p>${esc(p.description)}</p>`:""}<div class="stprice">${cedi(Number(p.price))}</div><button class="btn" data-add="${esc(p.id)}" type="button">Add to cart</button></div></div>`}).join("")}</div>`:productsError?`<div class="note" style="margin:16px">Could not load the store (${esc(productsError)}). Please reload the page or try again in a moment.</div>`:'<div class="empty" style="padding:40px 16px;text-align:center">The store is being stocked. Please check back soon.</div>';
+    return `<div class="stcard" data-pid="${esc(p.id)}"><div class="stimg" data-view="${esc(p.id)}">${img?`<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:"🛍️"}<span class="stv">${Array.isArray(p.gallery)&&p.gallery.length?"↻ 360° view":"🔍 Zoom & rotate"}</span></div><div class="stbody"><b data-view="${esc(p.id)}">${esc(p.name)}</b>${p.description?`<p>${esc(p.description)}</p>`:""}<div class="stprice">${cedi(Number(p.price))}</div><button class="btn" data-add="${esc(p.id)}" type="button">Add to cart</button></div></div>`}).join("")}</div>`:productsError?`<div class="note" style="margin:16px">Could not load the store (${esc(productsError)}). Please reload the page or try again in a moment.</div>`:'<div class="empty" style="padding:40px 16px;text-align:center">The store is being stocked. Please check back soon.</div>';
 }
 function renderSheet(){
   const el=$("#stSheetBody");if(!el)return;
@@ -3142,9 +3178,10 @@ function stPush(p,size,color){
 }
 $("#storeO").addEventListener("click",e=>{
   const t=e.target;
-  if(t.closest("#stClose")){openSheet("");close();return}
+  if(t.closest("#stClose")){closeViewer();openSheet("");close();return}
   if(t.closest("#stBack")||t.closest("#stBack0")){readStForm();openSheet("");updateCount();return}
   if(t.closest("#stBar")){openSheet("cart");return}
+  const vw=t.closest("[data-view]");if(vw&&!t.closest("[data-add]")){openViewer(vw.dataset.view);return}
   const add=t.closest("[data-add]");if(add){stAdd(add.dataset.add);return}
   const pk=t.closest("[data-pick]");if(pk){stPick[pk.dataset.pick]=pk.dataset.v;renderSheet();return}
   if(t.closest("#stConfirm")){if(stPend){stPush(stPend,stPick.size,stPick.color);stPend=null;openSheet("")}return}
@@ -3200,13 +3237,83 @@ async function verifyOrder(ref,n=0,silent=false){
 /* if the page was closed right after paying, the order is confirmed when the site opens again */
 setTimeout(()=>{try{const pr=localStorage.getItem("namsa_store_ref");if(pr){localStorage.removeItem("namsa_store_ref");verifyOrder(pr,0,true)}}catch{}},2000);
 
+/* ===== item viewer: zoom, rotate and spin 360° ===== */
+const VW={p:null,frames:[],i:0,z:1,x:0,y:0,r:0,auto:false,pts:new Map(),run:false,moved:false,pinch:null,tap:0};
+const vwClamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const vwFrames=p=>[p.image_url,...(Array.isArray(p.gallery)?p.gallery:[])].map(u=>safeUrl(u)).filter(Boolean);
+function openViewer(id){
+  const p=prodOf(id);if(!p)return;
+  Object.assign(VW,{p,frames:vwFrames(p),i:0,z:1,x:0,y:0,r:0,auto:false,pts:new Map(),pinch:null});
+  VW.frames.forEach(u=>{const im=new Image();im.src=u});
+  $("#vwTitle").textContent=p.name;$("#vwPrice").textContent=cedi(Number(p.price));
+  const multi=VW.frames.length>1;
+  $("#vwBadge").textContent=multi?"360° · "+VW.frames.length+" photos":"Zoom & rotate";
+  $("#vwHint").textContent=multi?"Drag left or right to spin it · pinch or scroll to zoom · double-tap to zoom in":"Drag to rotate · pinch or scroll to zoom · double-tap to zoom in";
+  $("#vwAuto").textContent="▶ Auto spin";$("#vwImg").dataset.k="";
+  $("#stViewer").hidden=false;vwDraw();vwKick();
+}
+function closeViewer(){$("#stViewer").hidden=true;VW.auto=false}
+function vwDraw(){
+  const n=VW.frames.length,img=$("#vwImg");if(!n)return;
+  const idx=((Math.round(VW.i)%n)+n)%n;
+  if(img.dataset.k!==String(idx)){img.src=VW.frames[idx];img.dataset.k=String(idx)}
+  img.style.transform=`translate(${VW.x}px,${VW.y}px) rotate(${VW.r}deg) scale(${VW.z})`;
+}
+function vwLoop(){
+  VW.run=false;if($("#stViewer").hidden)return;
+  if(VW.auto&&!VW.pts.size){if(VW.frames.length>1)VW.i+=VW.frames.length/(12*60);else VW.r+=0.5;vwDraw()}   /* one full turn in about 12 seconds */
+  VW.run=true;requestAnimationFrame(vwLoop);
+}
+const vwKick=()=>{if(!VW.run){VW.run=true;requestAnimationFrame(vwLoop)}};
+(function(){
+  const st=$("#vwStage");
+  st.addEventListener("pointerdown",e=>{
+    st.setPointerCapture(e.pointerId);VW.pts.set(e.pointerId,{x:e.clientX,y:e.clientY});VW.moved=false;
+    if(VW.pts.size===2){const [a,b]=[...VW.pts.values()];VW.pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,ang:Math.atan2(b.y-a.y,b.x-a.x),z:VW.z,r:VW.r}}
+  });
+  st.addEventListener("pointermove",e=>{
+    const pt=VW.pts.get(e.pointerId);if(!pt)return;
+    const dx=e.clientX-pt.x,dy=e.clientY-pt.y;pt.x=e.clientX;pt.y=e.clientY;
+    if(VW.pts.size===2&&VW.pinch){
+      const [a,b]=[...VW.pts.values()],d=Math.hypot(a.x-b.x,a.y-b.y),ang=Math.atan2(b.y-a.y,b.x-a.x);
+      VW.z=vwClamp(VW.pinch.z*d/VW.pinch.d,1,5);VW.r=VW.pinch.r+(ang-VW.pinch.ang)*180/Math.PI;VW.moved=true;vwDraw();return;
+    }
+    if(Math.abs(dx)+Math.abs(dy)>0)VW.moved=true;
+    if(VW.z>1.05){VW.x+=dx;VW.y+=dy}                                                        /* zoomed in: drag moves the picture */
+    else if(VW.frames.length>1)VW.i-=dx/st.clientWidth*VW.frames.length*1.1;               /* a drag across the picture is about one full turn */
+    else VW.r+=dx*0.6;                                                                       /* one photo: drag turns it round */
+    vwDraw();
+  });
+  const up=e=>{
+    VW.pts.delete(e.pointerId);if(VW.pts.size<2)VW.pinch=null;
+    if(!VW.moved&&e.type==="pointerup"){const t=Date.now();if(t-VW.tap<320){VW.z=VW.z>1.2?1:2.6;if(VW.z===1){VW.x=0;VW.y=0}vwDraw();VW.tap=0}else VW.tap=t}   /* double-tap */
+  };
+  st.addEventListener("pointerup",up);st.addEventListener("pointercancel",up);
+  st.addEventListener("wheel",e=>{e.preventDefault();VW.z=vwClamp(VW.z*Math.exp(-e.deltaY*0.0015),1,5);if(VW.z<=1.02){VW.x=0;VW.y=0}vwDraw()},{passive:false});
+  $("#vwClose").onclick=closeViewer;
+  $("#vwRotL").onclick=()=>{VW.r-=15;vwDraw()};$("#vwRotR").onclick=()=>{VW.r+=15;vwDraw()};
+  $("#vwIn").onclick=()=>{VW.z=vwClamp(VW.z*1.35,1,5);vwDraw()};
+  $("#vwOut").onclick=()=>{VW.z=vwClamp(VW.z/1.35,1,5);if(VW.z<=1.02){VW.x=0;VW.y=0}vwDraw()};
+  $("#vwAuto").onclick=()=>{VW.auto=!VW.auto;$("#vwAuto").textContent=VW.auto?"⏸ Stop":"▶ Auto spin"};
+  $("#vwReset").onclick=()=>{Object.assign(VW,{z:1,x:0,y:0,r:0,i:0,auto:false});$("#vwAuto").textContent="▶ Auto spin";vwDraw()};
+  $("#vwAdd").onclick=()=>{const id=VW.p&&VW.p.id;closeViewer();if(id!=null)stAdd(id)};
+  addEventListener("keydown",e=>{
+    if($("#stViewer").hidden)return;
+    if(e.key==="Escape")closeViewer();
+    else if(e.key==="ArrowLeft"){VW.i-=1;if(VW.frames.length<2)VW.r-=15;vwDraw()}
+    else if(e.key==="ArrowRight"){VW.i+=1;if(VW.frames.length<2)VW.r+=15;vwDraw()}
+    else if(e.key==="+"||e.key==="="){VW.z=vwClamp(VW.z*1.35,1,5);vwDraw()}
+    else if(e.key==="-"){VW.z=vwClamp(VW.z/1.35,1,5);vwDraw()}
+  });
+})();
+
 /* ===== store admin: items with pictures, and orders ===== */
 let adminProducts=[];
 async function loadStoreAdmin(){
   if(!sb||!session||!$("#prList"))return;
   const a=await sb.from(CONFIG.PRODUCTS).select("*").order("sort",{ascending:true}).order("id",{ascending:true});
   adminProducts=a.error?[]:a.data;
-  $("#prList").innerHTML=adminProducts.length?adminProducts.map(p=>{const u=safeUrl(p.image_url);return `<div class="item"><div class="thumb">${u?`<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">`:"🛍️"}</div><div class="t"><b>${esc(p.name)}</b><small>${cedi(Number(p.price))}${p.price_l100!=null&&p.price_l100!==""?" · Level 100: "+cedi(Number(p.price_l100)):""}${p.ask_size===true?" · asks size":""}${p.active===false?" · hidden":""}</small></div><div class="acts"><button class="btn alt" data-pedit="${esc(p.id)}">Edit</button><button class="btn alt" data-ptoggle="${esc(p.id)}">${p.active===false?"Show":"Hide"}</button><button class="btn red" data-pdel="${esc(p.id)}">Delete</button></div></div>`}).join(""):'<div class="empty">No items yet. Add the first one above.</div>';
+  $("#prList").innerHTML=adminProducts.length?adminProducts.map(p=>{const u=safeUrl(p.image_url);return `<div class="item"><div class="thumb">${u?`<img src="${esc(u)}" alt="" style="width:100%;height:100%;object-fit:cover">`:"🛍️"}</div><div class="t"><b>${esc(p.name)}</b><small>${cedi(Number(p.price))}${p.price_l100!=null&&p.price_l100!==""?" · Level 100: "+cedi(Number(p.price_l100)):""}${p.ask_size===true?" · asks size":""}${Array.isArray(p.gallery)&&p.gallery.length?" · "+p.gallery.length+" angle photos":""}${p.active===false?" · hidden":""}</small></div><div class="acts"><button class="btn alt" data-pedit="${esc(p.id)}">Edit</button><button class="btn alt" data-ptoggle="${esc(p.id)}">${p.active===false?"Show":"Hide"}</button><button class="btn red" data-pdel="${esc(p.id)}">Delete</button></div></div>`}).join(""):'<div class="empty">No items yet. Add the first one above.</div>';
   await loadOrders();
 }
 let adminOrders=[];
@@ -3236,9 +3343,20 @@ $("#orDl").onclick=async()=>{
     saveBook([["Orders",[["Date","Order number","Name","Student ID","Phone","Email","Year batch","Intake","Program","Program type","Level","Items","Total (GHS)","Paid (GHS)","Status","Collected"],...lines],[22,26,26,18,16,28,12,12,12,14,8,50,12,12,14,10]],["Quantities to order",sum,[30,12,12,18]]],"NAMSA-store-orders-"+stamp()+".xlsx");
   }catch(x){toast("Failed: "+x.message)}
 };
-let prImgFile=null;
+let prImgFile=null,prGallery=[],prGalFiles=[],prGalRemoved=[];
+function renderGalAdmin(){
+  $("#prGalList").innerHTML=prGallery.map((u,i)=>`<div class="galth"><img src="${esc(safeUrl(u)||"")}" alt=""><button type="button" data-galrm="${i}" aria-label="Remove">✕</button></div>`).join("");
+  $("#prGalName").textContent=prGalFiles.length?prGalFiles.length+" new photo(s) will be shrunk and added":(prGallery.length?prGallery.length+" angle photo(s) saved":"");
+}
+$("#prGal").onchange=e=>{
+  const fs=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+  prGalFiles=prGalFiles.concat(fs).slice(0,Math.max(0,36-prGallery.length));
+  if(prGallery.length+prGalFiles.length>=36)toast("The most is 36 angle photos.");
+  e.target.value="";renderGalAdmin();
+};
+$("#prGalList").onclick=e=>{const b=e.target.closest("[data-galrm]");if(!b)return;const [u]=prGallery.splice(+b.dataset.galrm,1);if(u)prGalRemoved.push(u);renderGalAdmin()};
 $("#prImg").onchange=e=>{prImgFile=e.target.files[0]||null;$("#prImgName").textContent=prImgFile?prImgFile.name+" (will be shrunk to 50 KB)":""};
-function prReset(){["prId","prName","prDesc","prPrice","prPrice100","prSizes","prColors"].forEach(i=>$("#"+i).value="");$("#prActive").checked=true;$("#prAsk").checked=false;$("#prImg").value="";prImgFile=null;$("#prImgName").textContent="";$("#prCancel").hidden=true;$("#prSave").textContent="Save item"}
+function prReset(){["prId","prName","prDesc","prPrice","prPrice100","prSizes","prColors"].forEach(i=>$("#"+i).value="");$("#prActive").checked=true;$("#prAsk").checked=false;$("#prImg").value="";prImgFile=null;$("#prImgName").textContent="";prGallery=[];prGalFiles=[];prGalRemoved=[];renderGalAdmin();$("#prCancel").hidden=true;$("#prSave").textContent="Save item"}
 $("#prCancel").onclick=prReset;
 $("#prSave").onclick=async()=>{
   const id=$("#prId").value,name=$("#prName").value.trim(),price=parseFloat($("#prPrice").value),p100raw=$("#prPrice100").value.trim(),p100=p100raw===""?null:parseFloat(p100raw);
@@ -3247,19 +3365,22 @@ $("#prSave").onclick=async()=>{
   if(p100!==null&&!(p100>0))return toast("The Level 100 price must be a number, or leave it empty.");
   const old=id?adminProducts.find(x=>String(x.id)===id):null;
   let image_url=old?old.image_url:null;
+  const newGal=[];
   try{
     if(prImgFile){toast("Shrinking and uploading the picture…");image_url=(await uploadMedia(prImgFile,"store",false)).url}
-  }catch(x){return toast("Failed: "+x.message)}
-  const row={name,description:$("#prDesc").value.trim()||null,price,price_l100:p100,ask_size:$("#prAsk").checked,sizes:$("#prAsk").checked?(csv($("#prSizes").value).join(", ")||DEFAULT_SIZES):null,colors:csv($("#prColors").value).join(", ")||null,image_url,active:$("#prActive").checked};
+    for(const [k,f] of prGalFiles.entries()){toast("Shrinking and uploading angle photo "+(k+1)+" of "+prGalFiles.length+"…");newGal.push((await uploadMedia(f,"store",false)).url)}
+  }catch(x){newGal.forEach(dropFile);return toast("Failed: "+x.message)}
+  const row={name,description:$("#prDesc").value.trim()||null,price,price_l100:p100,ask_size:$("#prAsk").checked,sizes:$("#prAsk").checked?(csv($("#prSizes").value).join(", ")||DEFAULT_SIZES):null,colors:csv($("#prColors").value).join(", ")||null,image_url,gallery:[...prGallery,...newGal],active:$("#prActive").checked};
   const {error}=id?await sb.from(CONFIG.PRODUCTS).update(row).eq("id",id):await sb.from(CONFIG.PRODUCTS).insert({...row,sort:adminProducts.length});
-  if(error){if(prImgFile&&image_url)dropFile(image_url);return toast("Failed: "+error.message)}
+  if(error){if(prImgFile&&image_url)dropFile(image_url);newGal.forEach(dropFile);return toast("Failed: "+error.message)}
   if(old&&prImgFile&&old.image_url)dropFile(old.image_url);
+  prGalRemoved.forEach(dropFile);
   prReset();toast("Item saved");load();loadStoreAdmin();
 };
 $("#prList").onclick=async e=>{
   const ed=e.target.closest("[data-pedit]"),tg=e.target.closest("[data-ptoggle]"),del=e.target.closest("[data-pdel]");
   if(ed){const p=adminProducts.find(x=>String(x.id)===ed.dataset.pedit);if(!p)return;
-    $("#prId").value=p.id;$("#prName").value=p.name||"";$("#prDesc").value=p.description||"";$("#prPrice").value=p.price;$("#prPrice100").value=p.price_l100==null?"":p.price_l100;$("#prAsk").checked=p.ask_size===true;$("#prSizes").value=p.sizes||"";$("#prColors").value=p.colors||"";$("#prActive").checked=p.active!==false;$("#prCancel").hidden=false;$("#prSave").textContent="Update item";$("#prName").focus()}
+    $("#prId").value=p.id;$("#prName").value=p.name||"";$("#prDesc").value=p.description||"";$("#prPrice").value=p.price;$("#prPrice100").value=p.price_l100==null?"":p.price_l100;$("#prAsk").checked=p.ask_size===true;$("#prSizes").value=p.sizes||"";$("#prColors").value=p.colors||"";$("#prActive").checked=p.active!==false;prGallery=Array.isArray(p.gallery)?[...p.gallery]:[];prGalFiles=[];prGalRemoved=[];renderGalAdmin();$("#prCancel").hidden=false;$("#prSave").textContent="Update item";$("#prName").focus()}
   if(tg){const p=adminProducts.find(x=>String(x.id)===tg.dataset.ptoggle);if(!p)return;const {error}=await sb.from(CONFIG.PRODUCTS).update({active:p.active===false}).eq("id",p.id);if(error)return toast("Failed: "+error.message);load();loadStoreAdmin()}
   if(del){if(!confirm("Delete this item from the store?"))return;const p=adminProducts.find(x=>String(x.id)===del.dataset.pdel);const {error}=await sb.from(CONFIG.PRODUCTS).delete().eq("id",del.dataset.pdel);if(error)return toast("Delete failed: "+error.message);if(p&&p.image_url)dropFile(p.image_url);toast("Deleted");load();loadStoreAdmin()}
 };
