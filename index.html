@@ -994,11 +994,11 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
 
     <div class="atab" id="tab-admins">
       <div class="panel">
-        <div class="adm-top"><div><h2>Team &amp; roles</h2><p style="color:var(--muted)">Give each person only the access they need, and their own password. <b>Super admin</b>: everything. <b>Finance</b>: dues, payments, shop and reports. <b>Content editor</b>: leaders, website pictures, activities, announcements and contacts.</p></div></div>
+        <div class="adm-top"><div><h2>Team &amp; roles</h2><p style="color:var(--muted)">Give each person only the access they need, and their own password. <b>Super admin</b>: everything, including Leadership, Committees and this Team tab. <b>Finance</b>: dues and payments, reports and the new-semester button. <b>Store manager</b>: the store only. <b>Security officer</b>: the security tab only. <b>Publicity</b>: adverts, contacts and announcements. <b>Media head</b>: activities and the website pictures.</p></div></div>
         <div id="adminsList"></div>
         <h3 style="margin:18px 0 4px">Add or update a person</h3>
         <label for="admEm">Email</label><input type="email" id="admEm" placeholder="name@example.com" maxlength="120">
-        <label for="admRole">Role</label><select id="admRole"><option value="editor">Content editor</option><option value="finance">Finance</option><option value="super">Super admin</option></select>
+        <label for="admRole">Role</label><select id="admRole"><option value="finance">Finance (dues, payments, reports)</option><option value="store">Store manager (store only)</option><option value="security">Security officer (security only)</option><option value="adverts">Publicity (adverts, contacts, announcements)</option><option value="media">Media head (activities and website)</option><option value="super">Super admin (everything)</option></select>
         <label for="admPw">Password (at least 12 characters, with capital and small letters, a number and a symbol)</label>
         <div class="lrow"><input type="text" id="admPw" autocomplete="new-password" maxlength="72"><button class="btn alt" id="admGen" type="button">Generate</button></div>
         <div class="hint" style="margin-top:4px">Leave the password empty to change only the role. Share the password with the person privately; they can sign in at once.</div>
@@ -1625,7 +1625,7 @@ function render(){
 }
 
 function renderAdmin(){
-  if(!session)return;renderPeopleAdmin();renderSlots();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();if(myRole==="super")loadAdmins();if(myRole==="super"||myRole==="finance")loadStoreAdmin();if(myRole==="super"||myRole==="editor")loadAdvertsAdmin();renderSecurity();
+  if(!session)return;renderPeopleAdmin();renderSlots();renderBrandAdmin();renderSlideAdmin();renderPayAdmin();refreshDues();if(myRole==="super")loadAdmins();if(myRole==="super"||myRole==="store")loadStoreAdmin();if(myRole==="super"||myRole==="adverts")loadAdvertsAdmin();renderSecurity();
   const fallback=list===DEFAULTS;
   const withLink=list.filter(c=>links[c.id]||c.has_link).length;
   $("#cSummary").textContent=fallback?"":list.length+" committees, "+withLink+" with a link saved";
@@ -2686,10 +2686,12 @@ $("#adminList").addEventListener("keydown",e=>{
 });
 
 /* ---- team and roles (managed by the server; only a Super admin can open this) ---- */
-const ROLE_NAME={super:"Super admin",finance:"Finance",editor:"Content editor"};
-const TAB_ROLES={committees:["super"],leadership:["super","editor"],pictures:["super","editor"],activities:["super","editor"],news:["super","editor"],contacts:["super","editor"],dues:["super","finance"],store:["super","finance"],adverts:["super","editor"],security:["super"],admins:["super"]};
+const ROLE_NAME={super:"Super admin",finance:"Finance (dues, payments, reports)",store:"Store manager (store)",security:"Security officer (security)",adverts:"Publicity (adverts, contacts, announcements)",media:"Media head (activities, website)"};
+/* who may open which tab: the Super admin can open everything */
+const TAB_ROLES={committees:["super"],leadership:["super"],pictures:["super","media"],activities:["super","media"],news:["super","adverts"],contacts:["super","adverts"],adverts:["super","adverts"],dues:["super","finance"],store:["super","store"],security:["super","security"],admins:["super"]};
 let myRole="super";
 function applyRole(){
+  if(myRole==="editor")myRole="media";   /* older name for the media head */
   document.querySelectorAll("#admTabs button").forEach(b=>{b.hidden=!(TAB_ROLES[b.dataset.tab]||["super"]).includes(myRole)});
   if(!(TAB_ROLES[curTab]||["super"]).includes(myRole)){const f=[...document.querySelectorAll("#admTabs button")].find(b=>!b.hidden);if(f)showTab(f.dataset.tab)}
   $("#who").textContent=(session&&session.user.email||"")+" · "+(ROLE_NAME[myRole]||myRole);
