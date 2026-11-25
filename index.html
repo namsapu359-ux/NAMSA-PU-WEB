@@ -491,6 +491,9 @@ textarea{resize:vertical;min-height:84px}
 .galth{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
 .galth img{width:100%;height:100%;object-fit:cover}
 .galth button{position:absolute;right:2px;top:2px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:.75rem;cursor:pointer;line-height:1}
+.chipnew{display:inline-block;background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:999px;font-size:.78rem;font-weight:700;margin-left:6px}
+.npbanner{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-weight:700}
+.npbanner[hidden]{display:none}
 /* ---- NAMSA store ---- */
 #storeO{align-items:stretch;justify-content:center;padding:0}
 .storepage{background:#fff;width:min(1100px,100%);height:100%;overflow:auto;position:relative;-webkit-overflow-scrolling:touch}
@@ -749,6 +752,7 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
       <button data-tab="contacts">Contacts</button>
       <button data-tab="store">Store</button>
       <button data-tab="adverts">Adverts</button>
+      <button data-tab="newpay">New payments</button>
       <button data-tab="dues">Dues &amp; payments</button>
       <button data-tab="security">Security</button>
       <button data-tab="admins">Team &amp; roles</button>
@@ -813,6 +817,7 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
     </div>
 
     <div class="atab" id="tab-store">
+      <div class="npbanner" hidden></div>
       <div class="panel">
         <div class="adm-top"><div><h2>NAMSA Store</h2><p style="color:var(--muted)">Add each item with its picture and price. Students see it in the Store, add it to their cart and pay online. Pictures are shrunk to under 50 KB automatically.</p></div></div>
         <input type="hidden" id="prId">
@@ -851,6 +856,14 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
       <div class="panel"><h3 style="margin:0 0 8px">Your adverts</h3><div id="adList"></div></div>
     </div>
 
+    <div class="atab" id="tab-newpay">
+      <div class="panel">
+        <div class="adm-top"><div><h2>New payments</h2><p style="color:var(--muted)">When someone pays, they can sign in at once, but they only appear on the existing lists after you tap <b>Add to existing list</b>. Tap <b>Remove</b> if the payment should not count: the name is kept off the list and the amount is taken back from that student. If you remove a payment, refund the money yourself in Paystack. Only the Super admin sees this tab.</p></div><div class="adm-acts"><button class="btn alt" id="npRefresh" type="button">Refresh</button></div></div>
+      </div>
+      <div class="panel"><div class="adm-top"><h3 style="margin:0">Dues payments waiting</h3><div class="adm-acts"><button class="btn" id="npAddAllDues" type="button">Add all to existing list</button></div></div><div id="npDues" style="margin-top:10px"></div></div>
+      <div class="panel"><div class="adm-top"><h3 style="margin:0">Store orders waiting</h3><div class="adm-acts"><button class="btn" id="npAddAllOrders" type="button">Add all to existing list</button></div></div><div id="npOrders" style="margin-top:10px"></div></div>
+    </div>
+
     <div class="atab" id="tab-contacts">
       <div class="panel">
         <div class="adm-top"><div><h2>Phone numbers &amp; emails</h2><p style="color:var(--muted)">These appear in the “Contact NAMSA” section of the website. Add as many as you need, edit them, or delete them.</p></div></div>
@@ -876,6 +889,7 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
     </div>
 
     <div class="atab" id="tab-dues">
+      <div class="npbanner" hidden></div>
       <div class="panel">
         <div class="adm-top"><div><h2>Dues payment settings</h2><p style="color:var(--muted)">Shown to students who have not paid enough to open a locked committee.</p></div></div>
         <label for="psUrl" style="margin-top:0">Paystack payment link</label><input type="url" id="psUrl" placeholder="https://paystack.com/pay/your-page">
@@ -2458,8 +2472,8 @@ async function refreshDues(){
   renderSemester();
   if(!sb||!session)return;
   const min=num(settings.dues_min,50);
-  const a=await sb.from(CONFIG.DUES).select("index_number",{count:"exact",head:true});
-  const b=await sb.from(CONFIG.DUES).select("index_number",{count:"exact",head:true}).gte("amount_paid",min);
+  const a=await sb.from(CONFIG.DUES).select("index_number",{count:"exact",head:true}).eq("listed",true);
+  const b=await sb.from(CONFIG.DUES).select("index_number",{count:"exact",head:true}).eq("listed",true).gte("amount_paid",min);
   $("#duesCount").textContent=a.error?"Could not read the dues list ("+a.error.message+")":a.count+" students on the list, "+(b.count||0)+" have paid "+cedi(min)+" or more";
 }
 function findCol(head,pats,skip){
@@ -2688,13 +2702,15 @@ $("#adminList").addEventListener("keydown",e=>{
 /* ---- team and roles (managed by the server; only a Super admin can open this) ---- */
 const ROLE_NAME={super:"Super admin",finance:"Finance (dues, payments, reports)",store:"Store manager (store)",security:"Security officer (security)",adverts:"Publicity (adverts, contacts, announcements)",media:"Media head (activities, website)"};
 /* who may open which tab: the Super admin can open everything */
-const TAB_ROLES={committees:["super"],leadership:["super"],pictures:["super","media"],activities:["super","media"],news:["super","adverts"],contacts:["super","adverts"],adverts:["super","adverts"],dues:["super","finance"],store:["super","store"],security:["super","security"],admins:["super"]};
+const TAB_ROLES={committees:["super"],leadership:["super"],pictures:["super","media"],activities:["super","media"],news:["super","adverts"],contacts:["super","adverts"],adverts:["super","adverts"],newpay:["super"],dues:["super","finance"],store:["super","store"],security:["super","security"],admins:["super"]};
 let myRole="super";
 function applyRole(){
   if(myRole==="editor")myRole="media";   /* older name for the media head */
   document.querySelectorAll("#admTabs button").forEach(b=>{b.hidden=!(TAB_ROLES[b.dataset.tab]||["super"]).includes(myRole)});
   if(!(TAB_ROLES[curTab]||["super"]).includes(myRole)){const f=[...document.querySelectorAll("#admTabs button")].find(b=>!b.hidden);if(f)showTab(f.dataset.tab)}
   $("#who").textContent=(session&&session.user.email||"")+" · "+(ROLE_NAME[myRole]||myRole);
+  clearInterval(npTimer);
+  if(myRole==="super"){loadNewPay(true);npTimer=setInterval(()=>{if(session)loadNewPay(true)},45000)}else{NP={payments:[],orders:[]};npBadge()}
 }
 function genPw(){
   const sets=["ABCDEFGHJKLMNPQRSTUVWXYZ","abcdefghijkmnpqrstuvwxyz","23456789","!@#$%&*?-_"],all=sets.join("");
@@ -2941,6 +2957,7 @@ async function fetchAll(table,select,orderCol){
   const rows=[];
   for(let from=0;;from+=1000){
     let q=sb.from(table).select(select).range(from,from+999);
+    if(table===CONFIG.DUES||table===CONFIG.PAYMENTS)q=q.eq("listed",true);   /* new payments wait in the Super admin's queue first */
     if(orderCol)q=q.order(orderCol);
     const {data,error}=await q;
     if(error)throw error;
@@ -3309,6 +3326,49 @@ const vwKick=()=>{if(!VW.run){VW.run=true;requestAnimationFrame(vwLoop)}};
   });
 })();
 
+/* ===== New payments: only the Super admin adds people to the existing lists, or removes them ===== */
+let NP={payments:[],orders:[]},npTimer=null;
+const npCount=()=>NP.payments.length+NP.orders.length;
+function npBadge(){
+  const b=document.querySelector('#admTabs button[data-tab="newpay"]');if(b)b.textContent="New payments"+(npCount()?" ("+npCount()+")":"");
+  document.querySelectorAll(".npbanner").forEach(el=>{
+    const show=myRole==="super"&&npCount()>0;el.hidden=!show;
+    if(show)el.innerHTML=`<span>🔔 ${npCount()} new payment(s) are waiting to be added to the existing list.</span><button class="btn" data-gonp type="button">Review now</button>`;
+  });
+}
+async function loadNewPay(silent){
+  if(myRole!=="super"||!sb||!session)return;
+  const r=await sso("/admin/payment-review",{action:"list"});
+  if(!r.ok){if(!silent)toast(r.error||"Could not load the new payments");return}
+  const before=npCount();NP={payments:r.payments||[],orders:r.orders||[]};
+  npBadge();renderNewPay();
+  if(silent&&npCount()>before)toast("🔔 "+(npCount()-before)+" new payment(s) waiting for you");
+}
+function renderNewPay(){
+  const when=d=>{try{return new Date(d).toLocaleString()}catch{return ""}};
+  $("#npDues").innerHTML=NP.payments.length?NP.payments.map(p=>`<div class="item" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b>${esc(p.student_name||"")} · ${esc(p.index_number||"")}</b><span>${cedi(Number(p.amount))}${p.new_person?'<span class="chipnew">New person</span>':''}</span></div><small class="hint">${esc(when(p.paid_at))}${p.covers?" · "+esc(p.covers):""}${p.email?" · "+esc(p.email):""}<br>${esc([p.year_batch&&p.year_batch+" batch",p.intake&&p.intake+" intake",p.program,p.program_type,p.level&&"Level "+p.level].filter(Boolean).join(" · "))}</small><div class="row" style="margin-top:8px"><button class="btn" data-npadd="${esc(p.reference)}" type="button">✅ Add to existing list</button><button class="btn red" data-nprem="${esc(p.reference)}" type="button">🗑 Remove</button></div></div>`).join(""):'<div class="empty">No dues payments are waiting.</div>';
+  $("#npOrders").innerHTML=NP.orders.length?NP.orders.map(o=>{const its=Array.isArray(o.items)?o.items:[];return `<div class="item" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b>${esc(o.student_name||"")} · ${esc(o.index_number||"")}</b><span>${cedi(Number(o.total))} ${o.status==="paid"?"✅":'<span style="color:#b91c1c;font-weight:700">⚠ check amount</span>'}</span></div><small class="hint">${esc(when(o.created_at))}${o.phone?" · "+esc(o.phone):""}</small><div style="margin:6px 0">${its.map(l=>`${esc(l.name)} × ${esc(l.qty)}${[l.size,l.color].some(Boolean)?" ("+esc([l.size,l.color].filter(Boolean).join(", "))+")":""}`).join("<br>")}</div><div class="row"><button class="btn" data-npaddo="${esc(o.reference)}" type="button">✅ Add to existing list</button><button class="btn red" data-npremo="${esc(o.reference)}" type="button">🗑 Remove</button></div></div>`}).join(""):'<div class="empty">No store orders are waiting.</div>';
+}
+async function npAct(action,kind,refs,all){
+  const r=await sso("/admin/payment-review",{action,kind,refs,all:!!all});
+  if(!r.ok)return toast(r.error||"Failed");
+  toast(action==="approve"?r.done+" added to the existing list":r.done+" removed");
+  await loadNewPay(true);refreshDues();loadStoreAdmin();
+}
+$("#tab-newpay").addEventListener("click",e=>{
+  const t=e.target;
+  if(t.closest("#npRefresh"))return loadNewPay();
+  if(t.closest("#npAddAllDues")){if(NP.payments.length&&confirm("Add all "+NP.payments.length+" dues payment(s) to the existing list?"))npAct("approve","payment",[],true);return}
+  if(t.closest("#npAddAllOrders")){if(NP.orders.length&&confirm("Add all "+NP.orders.length+" store order(s) to the existing list?"))npAct("approve","order",[],true);return}
+  const a=t.closest("[data-npadd]");if(a)return npAct("approve","payment",[a.dataset.npadd]);
+  const ao=t.closest("[data-npaddo]");if(ao)return npAct("approve","order",[ao.dataset.npaddo]);
+  const r=t.closest("[data-nprem]");
+  if(r){const p=NP.payments.find(x=>x.reference===r.dataset.nprem);if(p&&confirm("Remove this payment?\n\n"+(p.student_name||"")+" ("+p.index_number+") paid "+cedi(Number(p.amount))+".\n\n• The amount is taken back from the student, and they will be asked to pay again.\n• "+(p.new_person?"Their name will not be added to the list.":"They stay on the list with the rest of what they paid.")+"\n• Refund the money yourself in Paystack."))npAct("reject","payment",[r.dataset.nprem]);return}
+  const ro=t.closest("[data-npremo]");
+  if(ro){const o=NP.orders.find(x=>x.reference===ro.dataset.npremo);if(o&&confirm("Remove this store order from "+(o.student_name||"")+" ("+o.index_number+")?\n\nRefund the money yourself in Paystack."))npAct("reject","order",[ro.dataset.npremo])}
+});
+document.addEventListener("click",e=>{if(e.target.closest("[data-gonp]"))showTab("newpay")});
+
 /* ===== store admin: items with pictures, and orders ===== */
 let adminProducts=[];
 async function loadStoreAdmin(){
@@ -3320,7 +3380,7 @@ async function loadStoreAdmin(){
 }
 let adminOrders=[];
 async function loadOrders(){
-  const o=await sb.from(CONFIG.ORDERS).select("*").order("created_at",{ascending:false}).limit(200);
+  const o=await sb.from(CONFIG.ORDERS).select("*").eq("listed",true).order("created_at",{ascending:false}).limit(200);
   adminOrders=o.error?[]:o.data;
   $("#orList").innerHTML=adminOrders.length?adminOrders.map(r=>{const its=Array.isArray(r.items)?r.items:[];return `<div class="item" style="display:block"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><b>${esc(r.student_name||"")} · ${esc(r.index_number||"")}</b><span>${cedi(Number(r.total))} ${r.status==="paid"?"✅":'<span style="color:#b91c1c;font-weight:700">⚠ check amount</span>'}${r.fulfilled?" · collected":""}</span></div><small class="hint">${esc(new Date(r.created_at).toLocaleString())}${r.phone?" · "+esc(r.phone):""} · ${esc(r.email||"")} · ${esc([r.year_batch&&r.year_batch+" batch",r.intake&&r.intake+" intake",r.program,r.program_type,r.level&&"Level "+r.level].filter(Boolean).join(" · "))}</small><div style="margin:6px 0">${its.map(l=>`${esc(l.name)} × ${esc(l.qty)}${[l.size,l.color].some(Boolean)?" ("+esc([l.size,l.color].filter(Boolean).join(", "))+")":""}`).join("<br>")}</div><button class="btn alt" data-ofill="${esc(r.reference)}" type="button">${r.fulfilled?"Mark as not collected":"Mark as collected"}</button></div>`}).join(""):'<div class="empty">No orders yet.</div>';
 }
@@ -3335,7 +3395,7 @@ $("#orList").onclick=async e=>{
 $("#orDl").onclick=async()=>{
   try{
     if(typeof XLSX==="undefined")throw new Error("The Excel tool did not load. Reload the page.");
-    const o=await sb.from(CONFIG.ORDERS).select("*").order("created_at",{ascending:false});
+    const o=await sb.from(CONFIG.ORDERS).select("*").eq("listed",true).order("created_at",{ascending:false});
     if(o.error)throw o.error;
     const rows=o.data;if(!rows.length)return toast("No orders yet.");
     const lines=rows.map(r=>[new Date(r.created_at).toLocaleString(),r.reference,r.student_name||"",r.index_number||"",r.phone||"",r.email||"",r.year_batch||"",r.intake||"",r.program||"",r.program_type||"",r.level||"",(Array.isArray(r.items)?r.items:[]).map(l=>l.name+" x"+l.qty+([l.size,l.color].some(Boolean)?" ("+[l.size,l.color].filter(Boolean).join(", ")+")":"")).join("; "),Number(r.total),Number(r.paid_amount),r.status==="paid"?"Paid":"Check amount",r.fulfilled?"Yes":"No"]);
