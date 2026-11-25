@@ -491,6 +491,10 @@ textarea{resize:vertical;min-height:84px}
 .galth{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
 .galth img{width:100%;height:100%;object-fit:cover}
 .galth button{position:absolute;right:2px;top:2px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:.75rem;cursor:pointer;line-height:1}
+#alertBar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 4%;background:#f59e0b;color:#3b2300;font-weight:800;animation:alertPulse 1.2s ease-in-out 4}
+#alertBar[hidden]{display:none}
+#alertBar button{border:0;border-radius:999px;padding:8px 16px;font-weight:800;cursor:pointer;font-family:inherit}
+@keyframes alertPulse{50%{background:#fbbf24}}
 .chipnew{display:inline-block;background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:999px;font-size:.78rem;font-weight:700;margin-left:6px}
 .npbanner{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-weight:700}
 .npbanner[hidden]{display:none}
@@ -741,8 +745,9 @@ input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:#0f5c93}
   <div class="adm-head">
     <div class="adm-bar">
       <div class="adm-brand"><span class="logo">🛠️</span><div><b>NAMSA-PU Admin</b><small id="who"></small></div></div>
-      <div class="adm-acts"><button class="btn light" id="admView">← View site</button><button class="btn red" id="outBtn">Sign out</button></div>
+      <div class="adm-acts"><button class="btn light" id="alertBtn" type="button">🔔 Alerts: on</button><button class="btn light" id="admView">← View site</button><button class="btn red" id="outBtn">Sign out</button></div>
     </div>
+    <div id="alertBar" hidden role="alert"></div>
     <div class="adm-tabs" id="admTabs">
       <button data-tab="committees" class="on">Committees</button>
       <button data-tab="leadership">Leadership</button>
@@ -2709,8 +2714,8 @@ function applyRole(){
   document.querySelectorAll("#admTabs button").forEach(b=>{b.hidden=!(TAB_ROLES[b.dataset.tab]||["super"]).includes(myRole)});
   if(!(TAB_ROLES[curTab]||["super"]).includes(myRole)){const f=[...document.querySelectorAll("#admTabs button")].find(b=>!b.hidden);if(f)showTab(f.dataset.tab)}
   $("#who").textContent=(session&&session.user.email||"")+" · "+(ROLE_NAME[myRole]||myRole);
-  clearInterval(npTimer);
-  if(myRole==="super"){loadNewPay(true);npTimer=setInterval(()=>{if(session)loadNewPay(true)},45000)}else{NP={payments:[],orders:[]};npBadge()}
+  if(myRole!=="super"){NP={payments:[],orders:[]};npBadge()}
+  startWatch();
 }
 function genPw(){
   const sets=["ABCDEFGHJKLMNPQRSTUVWXYZ","abcdefghijkmnpqrstuvwxyz","23456789","!@#$%&*?-_"],all=sets.join("");
@@ -3326,6 +3331,61 @@ const vwKick=()=>{if(!VW.run){VW.run=true;requestAnimationFrame(vwLoop)}};
   });
 })();
 
+/* ===== alerts: a sound, a bar, the browser tab and (if allowed) a notification when something new arrives ===== */
+const ALERT={on:(()=>{try{return localStorage.getItem("namsa_alerts")!=="off"}catch{return true}})(),ctx:null,flash:null,base:document.title,n:0};
+function alertBtnText(){const b=$("#alertBtn");if(b)b.textContent="🔔 Alerts: "+(ALERT.on?"on":"off")}
+function beep(){
+  try{
+    const c=ALERT.ctx||(ALERT.ctx=new (window.AudioContext||window.webkitAudioContext)());if(c.state==="suspended")c.resume();
+    [[880,0],[1175,.28]].forEach(([f,t])=>{const o=c.createOscillator(),g=c.createGain();o.type="sine";o.frequency.value=f;
+      g.gain.setValueAtTime(.0001,c.currentTime+t);g.gain.exponentialRampToValueAtTime(.3,c.currentTime+t+.03);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t+.45);
+      o.connect(g);g.connect(c.destination);o.start(c.currentTime+t);o.stop(c.currentTime+t+.5)});
+  }catch{}
+}
+function flashTitle(text){
+  clearInterval(ALERT.flash);let on=false;
+  ALERT.flash=setInterval(()=>{on=!on;document.title=on?"🔔 "+text:ALERT.base},900);
+  const stop=()=>{clearInterval(ALERT.flash);document.title=ALERT.base;removeEventListener("focus",stop)};
+  addEventListener("focus",stop);setTimeout(stop,60000);
+}
+function notify(title,body,tab){
+  if(!ALERT.on)return;
+  ALERT.n++;beep();try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch{}
+  const bar=$("#alertBar");
+  bar.hidden=false;bar.dataset.tab=tab;
+  bar.innerHTML=`<span>🔔 ${esc(title)}${body?": "+esc(body):""}</span><span><button data-alview type="button">View</button> <button data-aldismiss type="button">✕</button></span>`;
+  flashTitle(title);
+  try{if("Notification" in window&&Notification.permission==="granted"){const n=new Notification(title,{body:body||"",tag:"namsa-"+tab});n.onclick=()=>{window.focus();showTab(tab);n.close()}}}catch{}
+}
+$("#alertBar").addEventListener("click",e=>{
+  if(e.target.closest("[data-alview]")){showTab($("#alertBar").dataset.tab||"newpay");$("#alertBar").hidden=true}
+  if(e.target.closest("[data-aldismiss]"))$("#alertBar").hidden=true;
+});
+$("#alertBtn").onclick=async()=>{
+  ALERT.on=!ALERT.on;try{localStorage.setItem("namsa_alerts",ALERT.on?"on":"off")}catch{}
+  alertBtnText();
+  if(ALERT.on){
+    beep();
+    try{if("Notification" in window&&Notification.permission==="default"){const r=await Notification.requestPermission();toast(r==="granted"?"Alerts on: you will also get pop-up notifications.":"Alerts on (sound and bar). Allow notifications in your browser for pop-ups.")}else toast("Alerts are on.")}catch{toast("Alerts are on.")}
+  }else toast("Alerts are off.");
+};
+alertBtnText();
+/* every 30 seconds while the admin page is open: look for new things for this person's role */
+async function watchCount(key,table,title,tab){
+  const r=await sb.from(table).select("reference",{count:"exact",head:true}).eq("listed",true);
+  if(r.error||r.count==null)return;
+  let seen=null;try{const v=localStorage.getItem("namsa_seen_"+key);seen=v===null?null:+v}catch{}
+  if(seen!==null&&r.count>seen)notify(title,(r.count-seen)+" new");
+  try{localStorage.setItem("namsa_seen_"+key,String(r.count))}catch{}
+}
+async function watchOnce(){
+  if(!sb||!session)return;
+  if(myRole==="super")return loadNewPay(true);
+  if(myRole==="finance")return watchCount("pay",CONFIG.PAYMENTS,"New dues payment","dues");
+  if(myRole==="store")return watchCount("order",CONFIG.ORDERS,"New store order","store");
+}
+function startWatch(){clearInterval(npTimer);watchOnce();npTimer=setInterval(watchOnce,30000)}
+
 /* ===== New payments: only the Super admin adds people to the existing lists, or removes them ===== */
 let NP={payments:[],orders:[]},npTimer=null;
 const npCount=()=>NP.payments.length+NP.orders.length;
@@ -3342,7 +3402,7 @@ async function loadNewPay(silent){
   if(!r.ok){if(!silent)toast(r.error||"Could not load the new payments");return}
   const before=npCount();NP={payments:r.payments||[],orders:r.orders||[]};
   npBadge();renderNewPay();
-  if(silent&&npCount()>before)toast("🔔 "+(npCount()-before)+" new payment(s) waiting for you");
+  if(silent&&npCount()>before){const dn=NP.payments.length,on=NP.orders.length;notify("New payment waiting",[dn&&dn+" dues payment(s)",on&&on+" store order(s)"].filter(Boolean).join(" and ")+" for your approval","newpay")}
 }
 function renderNewPay(){
   const when=d=>{try{return new Date(d).toLocaleString()}catch{return ""}};
